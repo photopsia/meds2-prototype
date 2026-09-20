@@ -112,13 +112,14 @@
         <div class="data-group">
           <table class="medications entries proto-meds" data-group="eye">
             <colgroup>
-              <col class="proto-c-drug"><col class="proto-c-dir"><col class="proto-c-dates">
+              <col class="proto-c-drug"><col class="proto-c-lat"><col class="proto-c-dir"><col class="proto-c-dates">
               <col class="proto-c-supply"><col class="proto-c-order"><col class="proto-c-actions">
             </colgroup>
             <thead>
               <tr>
                 <th>Drug</th>
-                <th>Dose / frequency / route / side</th>
+                <th class="proto-lat-head">Side</th>
+                <th>Dose / frequency / route</th>
                 <th>Dates</th>
                 <th>Responsibility<br>to supply</th>
                 <th class="proto-rxsel-head">Order</th>
@@ -146,12 +147,13 @@
         <div class="data-group">
           <table class="medications entries proto-meds" data-group="systemic-ophth">
             <colgroup>
-              <col class="proto-c-drug"><col class="proto-c-dir"><col class="proto-c-dates">
+              <col class="proto-c-drug"><col class="proto-c-lat"><col class="proto-c-dir"><col class="proto-c-dates">
               <col class="proto-c-supply"><col class="proto-c-order"><col class="proto-c-actions">
             </colgroup>
             <thead>
               <tr>
                 <th>Drug</th>
+                <th class="proto-lat-head">Side</th>
                 <th>Dose / frequency / route</th>
                 <th>Dates</th>
                 <th>Responsibility<br>to supply</th>
@@ -185,12 +187,13 @@
         <div class="data-group">
           <table class="medications entries proto-meds" data-group="systemic-other">
             <colgroup>
-              <col class="proto-c-drug"><col class="proto-c-dir"><col class="proto-c-dates">
+              <col class="proto-c-drug"><col class="proto-c-lat"><col class="proto-c-dir"><col class="proto-c-dates">
               <col class="proto-c-supply"><col class="proto-c-order"><col class="proto-c-actions">
             </colgroup>
             <thead>
               <tr>
                 <th>Drug</th>
+                <th class="proto-lat-head">Side</th>
                 <th>Dose / frequency / route</th>
                 <th>Dates</th>
                 <th>Responsibility<br>to supply</th>
@@ -216,11 +219,11 @@
         <div class="data-group">
           <table class="medications entries proto-meds">
             <colgroup>
-              <col class="proto-c-drug"><col class="proto-c-dir"><col class="proto-c-dates">
+              <col class="proto-c-drug"><col class="proto-c-lat"><col class="proto-c-dir"><col class="proto-c-dates">
               <col class="proto-c-supply"><col class="proto-c-order"><col class="proto-c-actions">
             </colgroup>
             <thead>
-              <tr><th>Drug</th><th>Last recorded as</th><th>Dates</th><th colspan="2">Stop reason</th><th>Actions</th></tr>
+              <tr><th>Drug</th><th class="proto-lat-head">Side</th><th>Last recorded as</th><th>Dates</th><th colspan="2">Stop reason</th><th>Actions</th></tr>
             </thead>
             <tbody id="tbody-stopped"></tbody>
           </table>

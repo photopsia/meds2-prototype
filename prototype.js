@@ -691,7 +691,7 @@
     var tbody = $('#tbody-' + group);
     var rows = STATE.entries.filter(function (e) { return displayGroup(e) === group && e.status !== 'stopped'; });
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="5"><div class="proto-empty">None recorded</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7"><div class="proto-empty">None recorded</div></td></tr>';
       return;
     }
     tbody.innerHTML = rows.map(rowHtml).join('');
@@ -732,17 +732,19 @@
     var tbody = $('#tbody-stopped');
     var rows = STATE.entries.filter(function (e) { return e.status === 'stopped'; });
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="5"><div class="proto-empty">None</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7"><div class="proto-empty">None</div></td></tr>';
       return;
     }
     tbody.innerHTML = rows.map(function (e) {
       return '<tr class="proto-row is-stopped" data-id="' + e.id + '">'
         + '<td><span class="proto-drug-name">' + esc(e.drug) + '</span><span class="proto-drug-sub">' + esc(e.sub) + '</span></td>'
+        + '<td class="proto-lat">' + latIcon(e) + '</td>'
         + '<td class="proto-directions">' + esc(directions(e)) + '</td>'
-        + '<td class="proto-dates">' + fmtDate(e.start) + ' to ' + fmtDate(e.end) + '</td>'
+        + '<td class="proto-dates"><span class="proto-date-range">' + fmtDate(e.start)
+        +   '<i class="proto-date-arrow">&rarr;</i>' + fmtDate(e.end) + '</span></td>'
         + '<td colspan="2">' + esc(e.stopReason || '') + '</td>'
         + '<td class="proto-actions">'
-        +   '<button type="button" data-act="history" data-id="' + e.id + '">History</button>'
+        +   '<button type="button" data-act="history" data-id="' + e.id + '">History</button> '
         +   '<button type="button" data-act="restart" data-id="' + e.id + '">Restart</button>'
         + '</td></tr>';
     }).join('');
@@ -766,9 +768,6 @@
       tags += '<span class="proto-tag thisvisit">'
         + (STATE.thisEvent[e.id] === 'added' ? 'Started' : 'Changed') + ' at this visit</span>';
     }
-    if (e.lat === 'Right') tags += '<span class="proto-tag side-r">R</span>';
-    if (e.lat === 'Left') tags += '<span class="proto-tag side-l">L</span>';
-    if (e.lat === 'Both') tags += '<span class="proto-tag side-b">Both</span>';
     if (e.status === 'planned') tags += '<span class="proto-tag planned">Planned</span>';
     if (e.status === 'held') tags += '<span class="proto-tag held">On hold</span>';
     if (e.group !== 'eye' && isEyeRelevant(e)) {
@@ -789,12 +788,7 @@
         + esc(rxa.id) + ' ' + esc(ARTEFACT_STATES[rxa.status].label.toLowerCase()) + '</span>';
     }
 
-    var dates = 'Started ' + fmtDate(e.start);
-    if (e.status === 'planned') dates = 'Starts ' + fmtDate(e.start);
-    var courseTo = lastTaperEnd(e);
-    if (courseTo) dates += '<br>Course ends ' + fmtDate(courseTo);
-    else if (e.anchorDays !== null && e.anchorDays !== undefined) dates += '<br>Stops ' + e.anchorDays + ' days before next appt';
-    else if (e.taper.length) dates += '<br>Reducing course';
+    var dates = datesHtml(e);
 
     var last = e.history[e.history.length - 1];
     var attrib = last ? last.who + ', ' + fmtWhen(last.when) : '';
@@ -830,6 +824,7 @@
       +   '<span class="proto-drug-sub">' + esc(e.sub) + '</span>'
       +   (dx ? '<span class="proto-drug-sub proto-for">for ' + esc(dx.name) + '</span>' : '')
       +   '</td>'
+      + '<td class="proto-lat">' + latIcon(e) + '</td>'
       + '<td class="proto-directions">' + tags + '<br>' + esc(directions(e))
       +   (e.taper.length ? '<span class="proto-drug-sub">then ' + e.taper.map(function (t) { return esc(t.freq) + ' from ' + fmtDate(t.from); }).join(', ') + '</span>' : '')
       +   (e.advice && e.advice.status === 'awaiting'
@@ -841,17 +836,49 @@
       + '<td class="proto-supply">' + sel + '<span class="proto-supply-note">' + esc(supplyNote) + '</span></td>'
       + '<td class="proto-rxsel">' + toggle + '</td>'
       + '<td class="proto-actions">'
-      +   '<button type="button" data-act="edit" data-id="' + e.id + '">Change</button>'
+      +   '<button type="button" data-act="edit" data-id="' + e.id + '">Change</button> '
       +   (e.group === 'eye' ? ''
             : '<button type="button" data-act="relevance" data-id="' + e.id + '">'
-              + (isEyeRelevant(e) ? 'Not eye relevant' : 'Eye relevant') + '</button>')
+              + (isEyeRelevant(e) ? 'Not eye relevant' : 'Eye relevant') + '</button> ')
       +   (e.advice && e.advice.status === 'awaiting'
-            ? '<button type="button" class="proto-btn-confirm" data-act="confirm" data-id="' + e.id + '">Confirm</button>'
+            ? '<button type="button" class="proto-btn-confirm" data-act="confirm" data-id="' + e.id + '">Confirm</button> '
             : '')
-      +   '<button type="button" data-act="hold" data-id="' + e.id + '">' + (e.status === 'held' ? 'Resume' : 'Hold') + '</button>'
-      +   '<button type="button" data-act="stop" data-id="' + e.id + '">Stop</button>'
+      +   '<button type="button" data-act="hold" data-id="' + e.id + '">' + (e.status === 'held' ? 'Resume' : 'Hold') + '</button> '
+      +   '<button type="button" data-act="stop" data-id="' + e.id + '">Stop</button> '
       +   '<button type="button" data-act="history" data-id="' + e.id + '">History</button>'
       + '</td></tr>';
+  }
+
+  /* OpenEyes already has one laterality control, oe-lat, and it draws both eyes
+     at once: the side that applies is coloured, the side that does not is a grey
+     dash. That is why there is no "Both" pill here. Two marks in a fixed position
+     can be read down a column without reading any words, and a bilateral drug
+     looks like a bilateral drug rather than like a word that has to be parsed.
+     Systemic drugs get the person glyph, so the column means something on every
+     row and the four tables still line up. */
+  function latIcon(e) {
+    if (e.route !== 'Eye') return '<i class="oe-lat sys" title="Systemic"></i>';
+    var cls = e.lat === 'Right' ? 'R-n' : e.lat === 'Left' ? 'n-L' : e.lat === 'Both' ? 'R-L' : 'Rq-Lq';
+    var title = e.lat ? e.lat : 'Side not recorded';
+    return '<i class="oe-lat ' + cls + '" title="' + title + '"></i>';
+  }
+
+  /* One line, start arrow end, which is how the rest of OpenEyes writes a course
+     and how the earlier design drew it. "Ongoing" sits in the end slot rather
+     than being an absence, so an open-ended drug and a finite one are read the
+     same way. An anchored stop has no date yet and says so. */
+  function datesHtml(e) {
+    var from = fmtDate(e.start);
+    var to;
+    if (e.anchorDays !== null && e.anchorDays !== undefined) {
+      to = '<span class="proto-date-soft">' + e.anchorDays + 'd before next appt</span>';
+    } else if (lastTaperEnd(e)) {
+      to = fmtDate(lastTaperEnd(e));
+    } else {
+      to = '<span class="proto-date-soft">Ongoing</span>';
+    }
+    return '<span class="proto-date-range">' + from
+      + '<i class="proto-date-arrow">&rarr;</i>' + to + '</span>';
   }
 
   /* The stored date, not a recomputation. The row must show what is in the
@@ -1176,12 +1203,12 @@
       var top = cf.length ? cf[0].tier : 0;
       var tag = '';
       if (top === 1) tag = ' <span class="proto-tag rx">already on record</span>';
-      else if (top === 2) tag = ' <span class="proto-tag side-r">also in ' + esc(cf[0].entry.drug) + '</span>';
+      else if (top === 2) tag = ' <span class="proto-tag warn">also in ' + esc(cf[0].entry.drug) + '</span>';
       else if (top === 3) tag = ' <span class="proto-tag advised">same class as ' + esc(cf[0].entry.drug) + '</span>';
       return '<div class="proto-result' + (top === 1 ? ' is-active-already' : '') + '" data-idx="' + idx + '">'
         + '<span class="proto-drug-name">' + esc(c.drug) + '</span>'
         + tag
-        + (c.allergy ? ' <span class="proto-tag side-r">allergy recorded</span>' : '')
+        + (c.allergy ? ' <span class="proto-tag warn">allergy recorded</span>' : '')
         + '<span class="proto-drug-sub">' + esc(c.sub) + '</span></div>';
     }).join('') || '<div class="proto-empty">No matches</div>';
   }
@@ -1654,7 +1681,7 @@
       });
       return '<div class="proto-result" data-set="' + s.id + '">'
         + '<span class="proto-drug-name">' + esc(s.name) + '</span>'
-        + (allergic.length ? ' <span class="proto-tag side-r">allergy: ' + esc(allergic.join(', ')) + '</span>' : '')
+        + (allergic.length ? ' <span class="proto-tag warn">allergy: ' + esc(allergic.join(', ')) + '</span>' : '')
         + (dupes.length ? ' <span class="proto-tag rx">already on: ' + esc(dupes.join(', ')) + '</span>' : '')
         + '<span class="proto-drug-sub">' + esc(names.join(', ')) + '</span></div>';
     }).join('') || '<div class="proto-empty">Nothing available to you</div>';

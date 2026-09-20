@@ -76,9 +76,6 @@ tr.proto-row + tr.proto-row td { border-top: 1px solid rgba(128,128,128,0.25); }
   vertical-align: middle;
   white-space: nowrap;
 }
-.proto-tag.side-r { background: #d9a2a2; color: #3a1010; }
-.proto-tag.side-l { background: #a2b6d9; color: #101f3a; }
-.proto-tag.side-b { background: #c0b3d6; color: #221436; }
 .proto-tag.planned { background: #6b8fb5; color: #fff; }
 .proto-tag.held { background: #c9962e; color: #201400; }
 .proto-tag.pinned { background: #2f6f4f; color: #fff; }
@@ -197,12 +194,30 @@ tr.proto-row.just-changed td { animation: proto-flash 1.6s ease-out; }
    action row in each table sets its own column widths, which is exactly why
    they drifted apart. */
 table.proto-meds { table-layout: fixed; width: 100%; }
-table.proto-meds col.proto-c-drug    { width: 19%; }
-table.proto-meds col.proto-c-dir     { width: 25%; }
-table.proto-meds col.proto-c-dates   { width: 12%; }
+table.proto-meds col.proto-c-drug    { width: 16%; }
+table.proto-meds col.proto-c-lat     { width: 44px; }
+table.proto-meds col.proto-c-dir     { width: 21%; }
+table.proto-meds col.proto-c-dates   { width: 19%; }
 table.proto-meds col.proto-c-supply  { width: 12%; }
 table.proto-meds col.proto-c-order   { width: 5%; }
 table.proto-meds col.proto-c-actions { width: 27%; }
+
+/* Search results reuse the tag shape to warn about an allergy or a product the
+   patient is already on. */
+.proto-tag.warn { background: #d9a2a2; color: #3a1010; }
+
+/* Laterality uses the stock OpenEyes oe-lat sprite, which draws both eyes in a
+   fixed 30px frame. Keeping it in its own column is what makes the sides
+   scannable straight down the list. */
+table.proto-meds td.proto-lat { vertical-align: top; padding-top: 6px; }
+table.proto-meds td.proto-lat .oe-lat { display: inline-block; }
+table.proto-meds th.proto-lat-head { white-space: nowrap; }
+
+/* A course reads as one span, start to end, rather than two labelled lines.
+   Ongoing and an anchored stop sit in the end slot so the shape never changes. */
+.proto-date-range { white-space: nowrap; }
+.proto-date-arrow { font-style: normal; opacity: 0.55; padding: 0 4px; }
+.proto-date-soft { color: #666; }
 table.proto-meds td, table.proto-meds th { overflow-wrap: break-word; }
 /* The systemic tables carry one extra button, so their actions wrap to a second
    line rather than widening the column and breaking the shared grid. */
@@ -245,7 +260,9 @@ table.proto-meds td.proto-actions button { margin: 0 0 2px 2px; }
 .proto-set-item input { margin-top: 2px; flex: 0 0 auto; }
 .proto-set-item.is-skipped { opacity: 0.65; }
 
-.proto-actions { white-space: nowrap; text-align: right; }
+/* Rows that carry an extra action, the eye-relevance toggle, need more than one
+   line at this width. Wrapping is better than clipping the last button. */
+.proto-actions { text-align: right; }
 .proto-actions button {
   font-size: 0.6875rem;
   padding: 3px 7px;
