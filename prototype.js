@@ -187,6 +187,8 @@
     { drug: 'Tropicamide',            sub: '1% eye drops',                       group: 'eye',             route: 'Eye',  unit: 'drop' },
     { drug: 'Phenylephrine',          sub: '2.5% eye drops',                     group: 'eye',             route: 'Eye',  unit: 'drop' },
     { drug: 'Hypromellose',           sub: '0.3% eye drops',                     group: 'eye',             route: 'Eye',  unit: 'drop', sugg: 'D3' },
+    { drug: 'Hypromellose PF',        sub: '0.3% eye drops, unit dose, preservative free', group: 'eye', route: 'Eye', unit: 'drop', pf: true, vtm: ['hypromellose'] },
+    { drug: 'Dexamethasone PF',       sub: '0.1% eye drops, unit dose, preservative free', group: 'eye', route: 'Eye', unit: 'drop', pf: true, vtm: ['dexamethasone'], cls: ['topical corticosteroid'] },
     { drug: 'Aflibercept',            sub: '40mg/ml intravitreal injection',     group: 'eye',             route: 'Intravitreal', unit: 'mg' },
     { drug: 'Acetazolamide',          sub: '250mg tablets',                      group: 'systemic-ophth',  route: 'Oral', unit: 'mg', sugg: 'D1', vtm: ['acetazolamide'], cls: ['carbonic anhydrase inhibitor'] },
     { drug: 'Prednisolone',           sub: '5mg tablets',                        group: 'systemic-ophth',  route: 'Oral', unit: 'mg', sugg: 'D2', vtm: ['prednisolone'], cls: ['systemic corticosteroid'] },
@@ -217,7 +219,8 @@
     committed: [],
     /* What this event changed, once saved. The record event's entries are this
        list, so nothing extra has to be stored to render it. */
-    thisEvent: {}
+    thisEvent: {},
+    view: 'record'
   };
 
   function cloneEntries() { return JSON.parse(JSON.stringify(STATE.entries)); }
@@ -699,34 +702,19 @@
 
   /* The count goes in the header so a collapsed section still says how much is
      behind it. A section that hides an unknown quantity is one nobody opens. */
+  /* Every group carries its count in the heading, the way IDG shows "Eye (99)",
+     so a collapsed group still says how much is behind it. */
   function renderCollapseCounts() {
-    var other = STATE.entries.filter(function (e) {
-      return displayGroup(e) === 'systemic-other' && e.status !== 'stopped';
-    }).length;
-    var stopped = STATE.entries.filter(function (e) { return e.status === 'stopped'; }).length;
-    $('#proto-count-other').textContent = other;
-    $('#proto-count-stopped').textContent = stopped;
-  }
-
-  /* Mirrors the application's own collapse-data behaviour: the class on the
-     header swaps between expand and collapse, and the content block is hidden. */
-  [['proto-collapse-other', 0], ['proto-collapse-stopped', 0]].forEach(function (pair) {
-    var hd = document.getElementById(pair[0]);
-    var toggle = function () {
-      var body = hd.nextElementSibling;
-      var open = hd.classList.toggle('collapse');
-      hd.classList.toggle('expand', !open);
-      hd.setAttribute('aria-expanded', open ? 'true' : 'false');
-      /* The application's own stylesheet sets display:none on
-         .collapse-data-content and its JS toggles the inline style, so match
-         that rather than fighting it with the hidden attribute. */
-      body.style.display = open ? 'block' : 'none';
-    };
-    hd.addEventListener('click', toggle);
-    hd.addEventListener('keydown', function (ev) {
-      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle(); }
+    var counts = { eye: 0, 'systemic-ophth': 0, 'systemic-other': 0, stopped: 0 };
+    STATE.entries.forEach(function (e) {
+      if (e.status === 'stopped') counts.stopped++;
+      else counts[displayGroup(e)]++;
     });
-  });
+    Object.keys(counts).forEach(function (g) {
+      var el = $('#group-' + g + ' .proto-count');
+      if (el) el.textContent = counts[g];
+    });
+  }
 
   function renderStopped() {
     var tbody = $('#tbody-stopped');
@@ -759,33 +747,49 @@
     var pend = pendingKind(e.id);
     if (pend) cls += ' is-unsaved';
 
+    /* OpenEyes states things with icons and one highlighter class, not a row of
+       coloured pills. Anything a glyph can say, a glyph says: a clock for a drug
+       that has not started, a taper icon for a reducing course, an Rx icon with
+       the order number. The highlighter is reserved for the two states a reader
+       has to act on, which are an unsaved change and a planned action still
+       waiting on the patient. */
     var tags = '';
     if (pend) {
-      tags += '<span class="proto-tag unsaved">'
+      tags += '<span class="highlighter orange">'
         + (pend === 'added' ? 'Added' : pend === 'stopped' ? 'Stopped' : 'Changed')
-        + ', not saved</span>';
+        + ', not saved</span> ';
     } else if (STATE.thisEvent[e.id]) {
-      tags += '<span class="proto-tag thisvisit">'
-        + (STATE.thisEvent[e.id] === 'added' ? 'Started' : 'Changed') + ' at this visit</span>';
+      tags += '<span class="highlighter subtle-invert">'
+        + (STATE.thisEvent[e.id] === 'added' ? 'Started' : 'Changed') + ' at this visit</span> ';
     }
-    if (e.status === 'planned') tags += '<span class="proto-tag planned">Planned</span>';
-    if (e.status === 'held') tags += '<span class="proto-tag held">On hold</span>';
-    if (e.group !== 'eye' && isEyeRelevant(e)) {
-      tags += '<span class="proto-tag pinned' + (isOverridden(e) ? ' override' : '') + '">Eye relevant'
-        + (isOverridden(e) ? ' (set here)' : '') + '</span>';
-    } else if (isOverridden(e)) {
-      tags += '<span class="proto-tag override">Not eye relevant (set here)</span>';
+    if (e.status === 'planned') {
+      tags += '<i class="oe-i clock small pad-r no-click" title="Starts ' + esc(fmtDate(e.start)) + '"></i>';
     }
-    if (e.taper.length) tags += '<span class="proto-tag taper">Reducing course</span>';
+    if (e.status === 'held') {
+      tags += '<i class="oe-i waiting small pad-r no-click" title="On hold"></i>';
+    }
+    /* Eye relevance is already said by which group the row is in, so it is only
+       marked when a person has overridden the default and the group is therefore
+       not self-explanatory. */
+    if (isOverridden(e)) {
+      tags += '<i class="oe-i ' + (isEyeRelevant(e) ? 'eye' : 'd-slash')
+        + ' small pad-r no-click" title="Relevance set by hand: '
+        + (isEyeRelevant(e) ? 'relevant to eye care' : 'not relevant to eye care') + '"></i>';
+    }
+    if (e.taper.length) {
+      tags += '<i class="oe-i taper small pad-r no-click" title="Reducing course"></i>';
+    }
     if (e.advice && e.advice.status === 'awaiting') {
-      tags += '<span class="proto-tag advised">'
-        + (e.advice.action === 'stop' ? 'Stop planned' : 'Hold planned') + '</span>';
+      tags += '<span class="highlighter">'
+        + (e.advice.action === 'stop' ? 'Stop planned' : 'Hold planned') + '</span> ';
     }
 
     var rxa = liveArtefactFor(e);
     if (rxa) {
-      tags += '<span class="proto-tag rx' + (isIssued(rxa) ? ' issued' : '') + '">'
-        + esc(rxa.id) + ' ' + esc(ARTEFACT_STATES[rxa.status].label.toLowerCase()) + '</span>';
+      tags += '<span class="proto-rx-ref' + (isIssued(rxa) ? ' is-issued' : '') + '">'
+        + '<i class="oe-i drug-rx small no-click"></i>' + esc(rxa.id)
+        + (isIssued(rxa) ? '' : ' <span class="fade">' + esc(ARTEFACT_STATES[rxa.status].label.toLowerCase()) + '</span>')
+        + '</span> ';
     }
 
     var dates = datesHtml(e);
@@ -896,33 +900,69 @@
   /* One button per form type, so the form is chosen once for the whole order
      rather than per drug. A form is offered when at least one selected drug
      could go on it. */
+  /* The prescribe controls belong to the element, not to the window. OpenEyes
+     does not use bars stuck to the bottom of the screen, and the action is
+     specific to this element, so it sits inside it, repeated top and bottom so
+     it is reachable from either end of a long list. It is not there at all until
+     something is selected, which keeps the element quiet in the common case.
+
+     The form is a radio rather than one button per form, because signing is one
+     act: pick the form, enter the PIN, the order exists. */
   function renderPrescribeBar() {
     var sel = selectedEntries();
-    var summary = $('#proto-prescribe-summary');
-    var wrap = $('#proto-form-buttons');
+    var bars = $$('.proto-rx-bar');
 
-    if (!sel.length) {
-      summary.textContent = user().canPrescribe
-        ? 'Switch on the toggle beside any medication, then choose how to order it.'
-        : user().name + ' cannot prescribe. Drugs covered by their PGDs can still be supplied under PGD.';
-      wrap.innerHTML = '';
+    if (!sel.length || STATE.view !== 'record') {
+      bars.forEach(function (b) { b.hidden = true; });
       return;
     }
 
     var forms = {};
     sel.forEach(function (e) { orderableForms(e).forEach(function (f) { forms[f] = (forms[f] || 0) + 1; }); });
+    var names = Object.keys(FORM_TYPES).filter(function (f) { return forms[f]; });
+    if (rxForm && names.indexOf(rxForm) === -1) rxForm = null;
+    if (!rxForm) rxForm = names[0] || null;
 
-    summary.innerHTML = '<strong>' + sel.length + ' selected:</strong> '
-      + esc(sel.map(function (e) { return e.drug; }).join(', '));
-
-    wrap.innerHTML = Object.keys(FORM_TYPES).filter(function (f) { return forms[f]; }).map(function (f) {
-      var n = forms[f];
-      var partial = n < sel.length;
-      return '<button type="button" class="button green" data-act="prescribe" data-form="' + f + '">'
-        + esc(FORM_TYPES[f].label) + (partial ? ' (' + n + ' of ' + sel.length + ')' : '')
-        + '</button>';
-    }).join('');
+    bars.forEach(function (bar) {
+      bar.hidden = false;
+      bar.querySelector('.proto-rx-count').textContent = sel.length + ' selected for order:';
+      bar.querySelector('.proto-rx-names').textContent = sel.map(function (e) { return e.drug; }).join(', ');
+      bar.querySelector('.proto-rx-forms').innerHTML = names.map(function (f) {
+        var n = forms[f];
+        return '<label class="highlight as-button inline"><input type="radio" data-rx-form="1" name="proto-rx-form-'
+          + bar.id + '" value="' + f + '"'
+          + (rxForm === f ? ' checked' : '') + '><span class="btn">' + esc(FORM_TYPES[f].label)
+          + (n < sel.length ? ' (' + n + ' of ' + sel.length + ')' : '') + '</span></label>';
+      }).join('');
+      bar.querySelector('.proto-draft-cb').checked = rxDraft;
+      bar.querySelector('.proto-rx-pin').value = '';
+      bar.querySelector('.proto-rx-pin').hidden = rxDraft;
+      bar.querySelector('.proto-pin-wrap').classList.toggle('is-draft', rxDraft);
+      bar.querySelector('.proto-pin-label').textContent = rxDraft ? 'Create draft order' : 'Sign by PIN';
+    });
   }
+
+  var rxForm = null;
+  var rxDraft = false;
+
+  document.addEventListener('change', function (ev) {
+    if (ev.target.dataset && ev.target.dataset.rxForm) { rxForm = ev.target.value; renderPrescribeBar(); return; }
+    if (ev.target.classList && ev.target.classList.contains('proto-draft-cb')) {
+      rxDraft = ev.target.checked;
+      renderPrescribeBar();
+      return;
+    }
+  });
+
+  /* Six digits and it signs, which is how every other PIN field in OpenEyes
+     behaves. A draft needs no PIN, so the draft path has its own button. */
+  document.addEventListener('input', function (ev) {
+    if (!ev.target.classList || !ev.target.classList.contains('proto-rx-pin')) return;
+    if (ev.target.value.length >= 6 && rxForm) {
+      ev.target.value = '';
+      prescribeFromBar(rxForm, true);
+    }
+  });
 
   function renderArtefacts() {
     var wrap = $('#proto-artefact-list');
@@ -967,8 +1007,29 @@
         +   (s.taper && s.taper.length ? '<span class="proto-drug-sub">then ' + s.taper.map(function (t) { return esc(t.freq) + ' from ' + fmtDate(t.from); }).join(', ') + '</span>' : '')
         +   (changed ? '<span class="proto-drug-sub">record now says: ' + esc(directions(findById(i.entryId))) + '</span>' : '')
         + '</td>'
-        + '<td>' + esc(i.location || (ft.needsLocation ? '' : 'Not applicable')) + '</td></tr>';
+        + '<td>' + (ft.needsLocation && !frozen
+            ? '<select data-act="rx-loc" data-rx="' + a.id + '" data-item="' + i.entryId + '">'
+              + locationsFor(a.condition).map(function (l) {
+                  return '<option' + (i.location === l ? ' selected' : '') + '>' + esc(l) + '</option>';
+                }).join('') + '</select>'
+            : esc(i.location || (ft.needsLocation ? '' : 'Not applicable')))
+        + '</td></tr>';
     }).join('');
+
+    /* The dispensing instruction and the location are set on the order and only
+       while it is still open. They are not on the medication row: they describe
+       this act of supply, not the patient's standing treatment, which is why
+       they had to come off the row when the record went patient-level. Once the
+       order is issued they are frozen with everything else. */
+    var conds = (ft.conditions || []).filter(function (c) { return inst().conditions.indexOf(c) >= 0; });
+    if (!conds.length) conds = ft.conditions || [];
+    var condCtl = frozen || !isOpen(a)
+      ? esc(COND_LABELS[a.condition] || a.condition)
+      : '<select data-act="rx-cond" data-rx="' + a.id + '">'
+        + conds.map(function (c) {
+            return '<option value="' + c + '"' + (c === a.condition ? ' selected' : '') + '>' + esc(COND_LABELS[c]) + '</option>';
+          }).join('') + '</select>';
+    meta.push('Dispensing instruction: ' + condCtl);
 
     /* Pharmacy signatory chips, mirroring the four configurable roles the real
        worklist renders. Whether they apply at all is a property of the form,
@@ -1002,7 +1063,7 @@
     if (u.canPrescribe && a.query && !a.query.resolvedAt) {
       actions.push(btn('rx-resolve', a.id, 'Resolve query', true));
     }
-    if (u.canDispense && ft.pharmacy && isLive(a) && a.status !== 'complete') {
+    if (u.canDispense && ft.pharmacy && isIssued(a) && a.status !== 'complete') {
       outstandingRoles(a).slice(0, 1).forEach(function (r) {
         actions.push('<button type="button" class="button green" data-act="rx-role" data-rx="' + a.id + '" data-role="' + esc(r) + '">Sign as "' + esc(r) + '"</button>');
       });
@@ -1092,7 +1153,7 @@
   var editingId = null, stoppingId = null, taperDraft = [];
 
   document.addEventListener('click', function (ev) {
-    var t = ev.target.closest('[data-act], .proto-tab, .proto-add, .proto-set-add, .proto-close, .proto-result');
+    var t = ev.target.closest('[data-act], .proto-tab, .proto-add, .proto-set-add, .proto-close, .proto-result, .proto-pin-label');
     if (!t) return;
 
     if (t.classList.contains('proto-set-add')) {
@@ -1100,9 +1161,10 @@
       openSetPicker(t.id === 'proto-btn-pgd' ? 'pgd' : 'standard');
       return;
     }
-    if (t.classList.contains('proto-result') && t.dataset.set) {
+    var setLabel = ev.target.closest && ev.target.closest('#proto-set-list label[data-set]');
+    if (setLabel) {
       ev.preventDefault();
-      addSet(t.dataset.set);
+      addSet(setLabel.dataset.set);
       return;
     }
 
@@ -1114,11 +1176,11 @@
       return;
     }
 
-    if (t.classList.contains('proto-add')) { ev.preventDefault(); openAdd(t.dataset.group); return; }
+    if (t.classList.contains('proto-add') || t.closest('.proto-add')) { ev.preventDefault(); openAdd(); return; }
 
-    if (t.classList.contains('proto-result')) {
+    if (t.classList.contains('proto-pin-label') && rxDraft && rxForm) {
       ev.preventDefault();
-      pickDrug(parseInt(t.dataset.idx, 10));
+      prescribeFromBar(rxForm, false);
       return;
     }
 
@@ -1140,7 +1202,7 @@
       case 'rx-reissue':   openCancel(t.dataset.rx, true); break;
       case 'rx-query':     openQuery(t.dataset.rx); break;
       case 'rx-resolve':   rxResolve(t.dataset.rx); break;
-      case 'prescribe':    openPrescribe(t.dataset.form); break;
+      case 'prescribe':    prescribeFromBar(t.dataset.form, true); break;
     }
   });
 
@@ -1150,6 +1212,22 @@
       render();
       alertBox('', 'Now acting as <strong>' + esc(user().name) + '</strong> (' + esc(user().role) + '). '
         + (user().canPrescribe ? 'Prescribing is available.' : 'Prescribing is not available for this role.'));
+      return;
+    }
+    if (ev.target.dataset && ev.target.dataset.act === 'rx-cond') {
+      var ac = rxById(ev.target.dataset.rx);
+      ac.condition = ev.target.value;
+      /* A condition change can change which locations are legal, so any location
+         that no longer exists falls back rather than lingering as a stale value. */
+      var legal = locationsFor(ac.condition);
+      Object.keys(ac.locations).forEach(function (k) {
+        if (legal.indexOf(ac.locations[k]) === -1) ac.locations[k] = legal[0];
+      });
+      render();
+      return;
+    }
+    if (ev.target.dataset && ev.target.dataset.act === 'rx-loc') {
+      rxById(ev.target.dataset.rx).locations[ev.target.dataset.item] = ev.target.value;
       return;
     }
     if (ev.target.dataset && ev.target.dataset.act === 'rx-note') {
@@ -1177,44 +1255,113 @@
     $$('.proto-view').forEach(function (el) { el.hidden = el.id !== 'view-' + v; });
     $$('.proto-tab').forEach(function (el) { el.classList.toggle('selected', el.dataset.view === v); });
     $('#proto-guide-text').textContent = GUIDE[v];
-    $('#proto-prescribe-bar').style.display = v === 'record' ? '' : 'none';
+    STATE.view = v;
+    renderPrescribeBar();
   }
 
   /* ---- add ---- */
 
-  var addGroup = 'eye';
+  /* The adder is one dialog with three ways into the same list: a short column
+     of the drugs this specialty starts most often, a short column of the
+     systemic drugs it cares about, and a search for everything else. No route
+     question up front, because the route decides which group the drug lands in,
+     and the route is set on the next screen. That is why there is one green plus
+     rather than an "Add eye medication" button beside every group. */
+  var COMMON_EYE = ['Latanoprost', 'Dorzolamide / Timolol', 'Dexamethasone', 'Chloramphenicol', 'Hypromellose', 'Timolol', 'Brimonidine'];
+  var COMMON_SYSTEMIC = ['Acetazolamide', 'Prednisolone', 'Doxycycline', 'Hydroxychloroquine', 'Amlodipine', 'Metformin'];
 
-  function openAdd(group) {
-    addGroup = group;
+  var addPick = null;
+
+  function openAdd() {
+    addPick = null;
     $('#proto-search').value = '';
+    $('#proto-add-brands').checked = false;
+    $('#proto-add-pf').checked = false;
+    renderAdderColumn('proto-add-common-eye', COMMON_EYE);
+    renderAdderColumn('proto-add-common-sys', COMMON_SYSTEMIC);
     renderSearch('');
+    renderAddNote();
     openPopup('popup-add');
     setTimeout(function () { $('#proto-search').focus(); }, 30);
   }
 
+  function catalogueFor(names) {
+    return names.map(function (n) { return CATALOGUE.filter(function (c) { return c.drug === n; })[0]; })
+      .filter(Boolean);
+  }
+
+  /* A drug already on the record is dimmed rather than badged, because the
+     answer is to change the existing row, not to add a second one. Tiers 2 and
+     3 get a warning glyph: they are addable, and the reason is spelled out in
+     the panel on the right once the drug is picked. */
+  function adderOption(c) {
+    var idx = CATALOGUE.indexOf(c);
+    var cf = conflictsFor(c);
+    var top = cf.length ? cf[0].tier : 0;
+    var flag = '';
+    if (c.allergy) flag = ' <i class="oe-i allergy small no-click" title="Allergy recorded"></i>';
+    else if (top === 2 || top === 3) flag = ' <i class="oe-i warning small no-click" title="' + esc(cf[0].detail) + '"></i>';
+    return '<label' + (top === 1 ? ' class="is-on-record" title="Already on the record"' : '') + '>'
+      + '<input type="radio" name="proto-add-pick" value="' + idx + '">'
+      + '<span class="li">' + esc(c.drug) + flag
+      + '<span class="proto-opt-sub">' + esc(c.sub) + '</span></span></label>';
+  }
+
+  function renderAdderColumn(id, names) {
+    $('#' + id).innerHTML = catalogueFor(names).map(adderOption).join('');
+  }
+
+  /* The two search options are IDG's. Brand names are off by default because a
+     brand match is a different product record, and preservative free is the
+     filter people actually ask for at the drop-by-drop level. */
   function renderSearch(q) {
     q = q.toLowerCase();
+    var brands = $('#proto-add-brands').checked;
+    var pf = $('#proto-add-pf').checked;
     var hits = CATALOGUE.filter(function (c) {
-      return !q || (c.drug + ' ' + c.sub).toLowerCase().indexOf(q) >= 0;
+      if (pf && !c.pf) return false;
+      var hay = (c.drug + (brands ? ' ' + c.sub : '')).toLowerCase();
+      return !q || hay.indexOf(q) >= 0;
     });
-    $('#proto-search-results').innerHTML = hits.map(function (c) {
-      var idx = CATALOGUE.indexOf(c);
-      var cf = conflictsFor(c);
-      var top = cf.length ? cf[0].tier : 0;
-      var tag = '';
-      if (top === 1) tag = ' <span class="proto-tag rx">already on record</span>';
-      else if (top === 2) tag = ' <span class="proto-tag warn">also in ' + esc(cf[0].entry.drug) + '</span>';
-      else if (top === 3) tag = ' <span class="proto-tag advised">same class as ' + esc(cf[0].entry.drug) + '</span>';
-      return '<div class="proto-result' + (top === 1 ? ' is-active-already' : '') + '" data-idx="' + idx + '">'
-        + '<span class="proto-drug-name">' + esc(c.drug) + '</span>'
-        + tag
-        + (c.allergy ? ' <span class="proto-tag warn">allergy recorded</span>' : '')
-        + '<span class="proto-drug-sub">' + esc(c.sub) + '</span></div>';
-    }).join('') || '<div class="proto-empty">No matches</div>';
+    $('#proto-search-results').innerHTML = hits.length
+      ? hits.map(adderOption).join('')
+      : '<div class="proto-empty">No matches</div>';
+  }
+
+  /* The warnings the columns only hint at with an icon are spelled out here,
+     so the reason a drug is flagged is readable before it is picked. */
+  function renderAddNote() {
+    var box = $('#proto-add-note');
+    if (!addPick) { box.innerHTML = ''; return; }
+    var c = CATALOGUE[addPick];
+    var bits = [];
+    if (c.allergy) bits.push('<span class="highlighter warning">Allergy recorded</span>');
+    conflictsFor(c).forEach(function (x) {
+      bits.push('<div class="fade">' + esc(x.detail) + ': ' + esc(x.entry.drug) + '</div>');
+    });
+    box.innerHTML = '<div class="proto-add-picked"><strong>' + esc(c.drug) + '</strong><br>'
+      + '<span class="fade">' + esc(c.sub) + '</span></div>' + bits.join('');
   }
 
   document.addEventListener('input', function (ev) {
     if (ev.target.id === 'proto-search') renderSearch(ev.target.value);
+  });
+
+  document.addEventListener('change', function (ev) {
+    if (ev.target.id === 'proto-add-brands' || ev.target.id === 'proto-add-pf') {
+      renderSearch($('#proto-search').value);
+      return;
+    }
+    if (ev.target.name === 'proto-add-pick') {
+      addPick = parseInt(ev.target.value, 10);
+      $('#proto-add-next').disabled = false;
+      renderAddNote();
+    }
+  });
+
+  $('#proto-add-next').addEventListener('click', function () {
+    if (addPick == null) return;
+    pickDrug(addPick);
   });
 
   /* Tiers 1 to 3 from chapter 2. Tier 1 is exact product and is prevented by
@@ -1318,7 +1465,7 @@
     }
 
     var e = mk({
-      drug: c.drug, sub: c.sub, group: addGroup,
+      drug: c.drug, sub: c.sub, group: c.route === 'Eye' ? 'eye' : 'systemic',
       dose: c.unit === 'drop' ? '1' : '', unit: c.unit,
       freq: 'Once daily', route: c.route, lat: c.route === 'Eye' ? 'Both' : '',
       start: TODAY, supply: null,
@@ -1330,8 +1477,8 @@
     STATE.lastChanged = e.id;
     closePopups();
     render();
-    alertBox('success', '<strong>' + esc(c.drug) + '</strong> added. Set the dose, say how long it is for, '
-      + 'and say who supplies it. Nothing here commits until the examination is saved.'
+    alertBox('success', '<strong>' + esc(c.drug) + '</strong> added. Set the route, dose and frequency, say how long '
+      + 'it is for, and tick Dispense if it needs an order. Nothing here commits until the examination is saved.'
       + (overridden ? ' The conflict you acknowledged is recorded in this drug\u2019s history.' : ''));
     openEdit(e);
   }
@@ -1341,19 +1488,145 @@
     openEdit(findById(this.dataset.id));
   });
 
+  /* ---- pick lists ---- */
+
+  /* OpenEyes writes a short closed list as a column of one-click buttons, not a
+     dropdown: fieldset.btn-list with a hidden radio behind each label. Two clicks
+     become one, and the whole list is readable without opening anything. Long
+     tails such as the full route table stay behind a select, which is what IDG
+     does too. */
+  function btnList(id, values, current) {
+    var name = 'p-' + id;
+    $('#' + id).innerHTML = values.map(function (v) {
+      var val = (typeof v === 'object') ? v.value : v;
+      var lab = (typeof v === 'object') ? v.label : v;
+      return '<label><input type="radio" name="' + name + '" value="' + esc(val) + '"'
+        + (String(val) === String(current == null ? '' : current) ? ' checked' : '') + '>'
+        + '<span class="li">' + esc(lab) + '</span></label>';
+    }).join('');
+  }
+
+  /* The same closed-list idea laid out horizontally: the design system calls it
+     "highlight as-button", and it is what IDG uses for the quick-set spans. */
+  function btnRow(id, values, current) {
+    var name = 'p-' + id;
+    $('#' + id).innerHTML = values.map(function (v) {
+      var val = (typeof v === 'object') ? v.value : v;
+      var lab = (typeof v === 'object') ? v.label : v;
+      return '<label class="highlight as-button inline"><input type="radio" name="' + name + '" value="' + esc(val) + '"'
+        + (String(val) === String(current == null ? '' : current) ? ' checked' : '') + '>'
+        + '<span class="btn">' + esc(lab) + '</span></label>';
+    }).join('');
+  }
+
+  function btnVal(id) {
+    var r = $('#' + id + ' input:checked');
+    return r ? r.value : '';
+  }
+
+  function clearBtns(id) {
+    $$('#' + id + ' input').forEach(function (i) { i.checked = false; });
+  }
+
+  var ROUTES = ['Eye', 'Oral', 'Intravitreal', 'Topical', 'Subconjunctival', 'Subcutaneous', 'Intravenous', 'Inhalation'];
+  var LATERALITIES = [
+    { value: '',      label: 'n/a' },
+    { value: 'Right', label: 'Right' },
+    { value: 'Left',  label: 'Left' },
+    { value: 'Both',  label: 'Right and Left' }
+  ];
+  var UNITS = ['drop', 'mg', 'microgram', 'ml', 'tablet(s)', 'capsule(s)', 'g', 'unit'];
+
+  /* The buttons cover what an eye clinic uses. The rest of the lookup table sits
+     behind a select, as IDG has it: picking from there adds the value as a
+     button so the chosen one is visible alongside the common ones. */
+  var ROUTES_ALL = ['Auricular', 'Buccal', 'Intracameral', 'Intramuscular', 'Intranasal',
+    'Nasal', 'Orbital floor', 'Peribulbar', 'Rectal', 'Retrobulbar', 'Subretinal',
+    'Subtenons', 'Sublingual', 'Transdermal', 'Vaginal'];
+  var UNITS_ALL = ['ampoule', 'device', 'dose', 'insert', 'iu', 'piece', 'strip',
+    'syringe', 'vial'];
+
+  function withLongTail(common, current) {
+    return (current && common.indexOf(current) === -1) ? common.concat([current]) : common;
+  }
+
+  function longTail(id, rest, common, current) {
+    var sel = $('#' + id);
+    var head = sel.options[0].textContent;
+    sel.innerHTML = '<option value="">' + esc(head) + '</option>'
+      + rest.filter(function (v) { return common.indexOf(v) === -1; })
+        .map(function (v) { return '<option' + (v === current ? ' selected' : '') + '>' + esc(v) + '</option>'; })
+        .join('');
+  }
+  var FREQUENCIES = [
+    'Once daily', 'Twice daily', 'Three times daily', 'Four times daily',
+    'Every 2 hours', 'At night', 'In the morning', 'Alternate days',
+    'Once weekly', 'As required', 'Immediately (stat)'
+  ];
+
+  /* The quick-set buttons are the IDG pattern and they are faster than a duration
+     dropdown for the lengths people actually use. They are still only a way of
+     writing the date: the date is the stored fact, and the span is provenance. */
+  var QUICK_DAYS = [1, 2, 3, 4, 5, 6, 7, 10, 14];
+  var QUICK_PERIODS = [
+    { value: '3 weeks', label: '3 wks' },
+    { value: '1 month', label: '1 mth' },
+    { value: '6 weeks', label: '6 wks' },
+    { value: '3 months', label: '3 mths' }
+  ];
+
   /* ---- edit ---- */
 
   function openEdit(e) {
     editingId = e.id;
-    $('#proto-edit-drug').textContent = e.drug + ' ' + e.sub;
+    $('#proto-edit-title').innerHTML = latIcon(e) + ' ' + esc(e.drug) + ' <span class="fade">' + esc(e.sub) + '</span>';
+
+    btnList('proto-edit-route', withLongTail(ROUTES, e.route), e.route);
+    longTail('proto-edit-route-all', ROUTES_ALL, ROUTES, e.route);
+    btnList('proto-edit-lat', LATERALITIES, e.lat);
+    syncLaterality();
+    btnList('proto-edit-unit', withLongTail(UNITS, e.unit), e.unit);
+    longTail('proto-edit-unit-all', UNITS_ALL, UNITS, e.unit);
+    btnList('proto-edit-freq', FREQUENCIES, e.freq);
     $('#proto-edit-dose').value = e.dose;
-    $('#proto-edit-unit').value = e.unit;
-    $('#proto-edit-freq').value = e.freq;
-    $('#proto-edit-route').value = e.route;
-    $('#proto-edit-lat').value = e.lat;
     $('#proto-edit-start').value = e.start;
+
+    /* Quick-set writes the date; it is not itself stored. Re-opening the dialog
+       shows the stored date with no span selected, so nothing recomputes behind
+       the user's back. */
+    btnRow('proto-quick-days', QUICK_DAYS.map(function (d) {
+      return { value: d + ' days', label: '+' + d };
+    }), '');
+    btnRow('proto-quick-periods', QUICK_PERIODS, '');
+    btnRow('proto-quick-anchor', [{ value: 'before_next_appointment', label: 'Stop before next appt' }],
+      e.anchorDays != null ? 'before_next_appointment' : '');
+    $('#proto-edit-anchordays').value = e.anchorDays || 7;
+    $('#proto-edit-ongoing').checked = !e.end && e.anchorDays == null;
+    $('#proto-edit-end').value = e.end || '';
+
+    var cat = catFor(e.drug);
+    $('#proto-edit-allergy').hidden = !cat.allergy;
+    if (cat.allergy) {
+      $('#proto-edit-allergy-name').textContent = e.drug;
+      $('#proto-edit-allergy-ack').checked = false;
+    }
+
     e.pendingIndication = e.indication;
     renderIndicationChips(e);
+
+    var opts = supplyOptions();
+    if (opts.indexOf(effectiveSupply(e)) === -1) opts = opts.concat([effectiveSupply(e)]);
+    btnList('proto-edit-supply', opts.map(function (o) {
+      return { value: o, label: RESPONSIBILITY[o] || o };
+    }), effectiveSupply(e));
+
+    /* Dispense is the order toggle, reachable from here as well as from the row,
+       because "add it and prescribe it" is one thought. */
+    $('#proto-edit-dispense-wrap').hidden = !canOrder(e);
+    $('#proto-edit-dispense').checked = STATE.selected.indexOf(e.id) >= 0;
+
+    $('#proto-edit-taper-on').checked = e.taper.length > 0;
+    taperDraft = e.taper.map(function (t) { return Object.assign({}, t); });
 
     var note = $('#proto-edit-rx-note');
     var a = liveArtefactFor(e);
@@ -1374,27 +1647,7 @@
       note.hidden = true;
     }
 
-    /* Responsibility is a standing property, so it is changed here rather than on
-       the row. It answers "who are we relying on from now on", not "order it
-       today", and it is three values rather than the dispense conditions. */
-    var opts = supplyOptions();
-    if (opts.indexOf(effectiveSupply(e)) === -1) opts = opts.concat([effectiveSupply(e)]);
-    $('#proto-edit-supply').innerHTML = opts.map(function (o) {
-      return '<option value="' + o + '"' + (effectiveSupply(e) === o ? ' selected' : '') + '>' + esc(RESPONSIBILITY[o] || o) + '</option>';
-    }).join('');
-
-    /* Duration and the reducing course live on this dialog rather than behind a
-       separate schedule button. Saying "for two weeks" should not be a second
-       trip, and today it is: duration is hidden until Prescribe is on. */
-    $('#proto-edit-duration').innerHTML = DURATIONS.map(function (d) {
-      return '<option' + (e.duration === d.name ? ' selected' : '') + '>' + esc(d.name) + '</option>';
-    }).join('');
-    $('#proto-edit-anchordays').value = e.anchorDays || 7;
-    /* The stored date, shown as stored. Opening the dialog must not recompute it. */
-    $('#proto-edit-end').value = e.end || '';
-    taperDraft = e.taper.map(function (t) { return Object.assign({}, t); });
     renderStopControl();
-
     openPopup('popup-edit');
   }
 
@@ -1497,73 +1750,151 @@
      the dropdown is the only way to reach one, which is storing the duration by
      another name. Editing it clears the dropdown to "Other" rather than leaving a
      duration on screen that no longer describes the date. */
-  function writeSuggestedEnd() {
-    var duration = $('#proto-edit-duration').value;
+  /* Which of the three end states the dialog is in. Exactly one is true:
+     ongoing (no end), anchored (no date yet, computed at the appointment), or a
+     stored date. */
+  function endMode() {
+    if (btnVal('proto-quick-anchor')) return 'anchored';
+    if ($('#proto-edit-ongoing').checked) return 'ongoing';
+    return 'dated';
+  }
+
+  function applyQuickSet(span) {
     var start = $('#proto-edit-start').value || TODAY;
-    var end = courseEnd(start, duration, taperDraft);
-    var kind = durKind(duration);
-    if (kind === 'ongoing' || kind === 'before_next_appointment') $('#proto-edit-end').value = '';
-    else if (end) $('#proto-edit-end').value = end;
+    $('#proto-edit-ongoing').checked = false;
+    clearBtns('proto-quick-anchor');
+    $('#proto-edit-end').value = addSpan(durationAnchor(start), span);
+    renderStopControl();
   }
 
   function renderStopControl() {
-    var duration = $('#proto-edit-duration').value;
-    var kind = durKind(duration);
+    var mode = endMode();
     var start = $('#proto-edit-start').value || TODAY;
     var end = $('#proto-edit-end').value;
 
-    $('#proto-edit-anchor-wrap').hidden = kind !== 'before_next_appointment';
-    /* Nothing can follow a single dose, so the reducing course is not offered. */
-    $('#proto-edit-taper-block').hidden = kind === 'once';
-    /* No date field for the two options that cannot have one. Ongoing means there
-       is no end; the anchored option means the date is not knowable yet. */
-    $('#proto-edit-end-wrap').hidden = (kind === 'ongoing' || kind === 'before_next_appointment');
-    $('#proto-edit-anchor-note').textContent =
-      (kind === 'span') ? anchorLabel(start) : '';
+    $('#proto-edit-anchor-wrap').hidden = mode !== 'anchored';
+    $('#proto-edit-end').disabled = mode !== 'dated';
+    $('#proto-edit-taper-block').hidden = !$('#proto-edit-taper-on').checked;
+    $('#proto-quick-note').textContent = 'Quick set end date from ' + anchorLabel(start).replace('from ', '');
 
     renderTaper();
 
     var note = $('#proto-edit-course-end');
-    if (kind === 'ongoing') {
+    if (mode === 'ongoing') {
       note.textContent = taperDraft.length
         ? 'Reduces as below, then continues at the last step until someone stops it.'
         : 'No end date. The drug continues until someone stops it.';
-    } else if (kind === 'before_next_appointment') {
+    } else if (mode === 'anchored') {
       note.textContent = 'Recorded as a planned stop ' + ($('#proto-edit-anchordays').value || 0)
         + ' days before the next appointment. The date is worked out when the appointment is known, '
         + 'and the drug stays on the record until someone confirms it was stopped.';
     } else if (!end) {
-      note.textContent = 'No stop date. Use the Stop action when it finishes, or pick a duration above.';
+      note.textContent = 'No stop date. Pick a quick set above, type a date, or tick Ongoing.';
     } else {
       note.textContent = 'Stops ' + fmtDate(end) + '. This date is what gets saved, so it will not '
         + 'move on its own if this drug is opened again later.';
     }
   }
 
-  /* Picking a duration or changing the start rewrites the date. Editing the date
-     by hand goes the other way: the dropdown drops to "Other", because it no
-     longer describes what is in the field. */
-  ['proto-edit-duration', 'proto-edit-start'].forEach(function (id) {
-    $('#' + id).addEventListener('change', function () { writeSuggestedEnd(); renderStopControl(); });
+  /* Quick set, ongoing and the anchored option are three ways of writing the same
+     field, so each one clears the other two. */
+  ['proto-quick-days', 'proto-quick-periods'].forEach(function (id) {
+    document.addEventListener('change', function (ev) {
+      if (ev.target.closest && ev.target.closest('#' + id)) {
+        clearBtns(id === 'proto-quick-days' ? 'proto-quick-periods' : 'proto-quick-days');
+        applyQuickSet(ev.target.value);
+      }
+    });
   });
-  $('#proto-edit-end').addEventListener('change', function () {
-    if (durKind($('#proto-edit-duration').value) !== 'once') $('#proto-edit-duration').value = 'Other';
+
+  document.addEventListener('change', function (ev) {
+    if (ev.target.closest && ev.target.closest('#proto-quick-anchor')) {
+      clearBtns('proto-quick-days');
+      clearBtns('proto-quick-periods');
+      $('#proto-edit-ongoing').checked = false;
+      $('#proto-edit-end').value = '';
+      renderStopControl();
+    }
+  });
+
+  $('#proto-edit-ongoing').addEventListener('change', function () {
+    if (this.checked) {
+      clearBtns('proto-quick-days');
+      clearBtns('proto-quick-periods');
+      clearBtns('proto-quick-anchor');
+      $('#proto-edit-end').value = '';
+    }
     renderStopControl();
   });
+
+  $('#proto-edit-taper-on').addEventListener('change', function () {
+    if (this.checked && !taperDraft.length) taperDraft = [];
+    if (!this.checked) taperDraft = [];
+    renderStopControl();
+  });
+
+  /* Typing a date by hand is authoritative: it drops any quick-set selection,
+     because the span no longer describes what is in the field. */
+  $('#proto-edit-end').addEventListener('change', function () {
+    clearBtns('proto-quick-days');
+    clearBtns('proto-quick-periods');
+    if (this.value) $('#proto-edit-ongoing').checked = false;
+    renderStopControl();
+  });
+
+  /* Laterality follows the route, because has_laterality is a property of the
+     route and not a free choice. Switching to Oral does not silently keep a
+     side on the record. */
+  function syncLaterality() {
+    var eye = btnVal('proto-edit-route') === 'Eye';
+    $$('#proto-edit-lat input').forEach(function (i) { i.disabled = !eye; });
+    $('#proto-edit-lat').classList.toggle('is-disabled', !eye);
+    if (!eye) {
+      clearBtns('proto-edit-lat');
+      var na = $('#proto-edit-lat input[value=""]');
+      if (na) na.checked = true;
+    }
+  }
+
+  document.addEventListener('change', function (ev) {
+    if (ev.target.closest && ev.target.closest('#proto-edit-route')) syncLaterality();
+  });
+
+  /* Picking from the long tail adds that value to the buttons and selects it, so
+     the dialog never shows a chosen route or unit only inside a closed select. */
+  [['proto-edit-route-all', 'proto-edit-route', ROUTES, true],
+   ['proto-edit-unit-all', 'proto-edit-unit', UNITS, false]].forEach(function (p) {
+    $('#' + p[0]).addEventListener('change', function () {
+      if (!this.value) return;
+      btnList(p[1], withLongTail(p[2], this.value), this.value);
+      if (p[3]) syncLaterality();
+    });
+  });
+
+  $('#proto-edit-start').addEventListener('change', renderStopControl);
   $('#proto-edit-anchordays').addEventListener('input', renderStopControl);
+
+  $('#proto-stop-today').addEventListener('click', function () {
+    clearBtns('proto-quick-days');
+    clearBtns('proto-quick-periods');
+    clearBtns('proto-quick-anchor');
+    $('#proto-edit-ongoing').checked = false;
+    $('#proto-edit-end').value = TODAY;
+    renderStopControl();
+  });
 
   $('#proto-edit-save').addEventListener('click', function () {
     var e = findById(editingId);
     var before = directions(e);
     e.dose = $('#proto-edit-dose').value;
-    e.unit = $('#proto-edit-unit').value;
-    e.freq = $('#proto-edit-freq').value;
-    e.route = $('#proto-edit-route').value;
-    e.lat = $('#proto-edit-lat').value;
+    e.unit = btnVal('proto-edit-unit');
+    e.freq = btnVal('proto-edit-freq');
+    e.route = btnVal('proto-edit-route');
+    e.lat = e.route === 'Eye' ? btnVal('proto-edit-lat') : '';
     e.start = $('#proto-edit-start').value;
     e.status = e.start > TODAY ? 'planned' : (e.status === 'held' ? 'held' : 'current');
 
-    var newSupply = $('#proto-edit-supply').value;
+    var newSupply = btnVal('proto-edit-supply');
     if (newSupply !== effectiveSupply(e)) {
       e.history.push(h(nowStamp(), user().name, 'Responsibility to supply changed',
         RESPONSIBILITY[effectiveSupply(e)] + ' to '
@@ -1574,14 +1905,15 @@
     /* Duration and taper are saved from the same dialog, so a fixed course or a
        reducing course is one interaction rather than two or three. */
     var beforeCourse = courseSummary(e);
-    e.duration = $('#proto-edit-duration').value;
-    e.anchorDays = durKind(e.duration) === 'before_next_appointment'
-      ? parseInt($('#proto-edit-anchordays').value, 10) : null;
+    var mode = endMode();
+    e.anchorDays = mode === 'anchored' ? parseInt($('#proto-edit-anchordays').value, 10) : null;
     e.taper = taperDraft.slice();
-    /* The date from the field, not the arithmetic. The duration is kept only as a
-       record of how the date was arrived at. */
-    e.end = (durKind(e.duration) === 'ongoing' || e.anchorDays !== null)
-      ? '' : $('#proto-edit-end').value;
+    /* The date from the field, not the arithmetic. A quick-set span is only how
+       the date was arrived at, so it is not what gets stored. */
+    e.end = mode === 'dated' ? $('#proto-edit-end').value : '';
+    e.duration = mode === 'ongoing' ? 'Ongoing'
+      : mode === 'anchored' ? 'Stop prior to next appointment'
+      : (btnVal('proto-quick-days') || btnVal('proto-quick-periods') || 'Other');
 
     /* Choosing the anchored duration IS a planned stop. It writes the same record
        as the Stop action with relative timing, so there is one representation,
@@ -1622,6 +1954,11 @@
       }
     }
     delete e.pendingIndication;
+
+    var wantOrder = canOrder(e) && $('#proto-edit-dispense').checked;
+    var at = STATE.selected.indexOf(e.id);
+    if (wantOrder && at === -1) STATE.selected.push(e.id);
+    if (!wantOrder && at >= 0) STATE.selected.splice(at, 1);
 
     var after = directions(e);
     var voided = [];
@@ -1679,11 +2016,13 @@
       var allergic = names.filter(function (n) {
         return (CATALOGUE.filter(function (c) { return c.drug === n; })[0] || {}).allergy;
       });
-      return '<div class="proto-result" data-set="' + s.id + '">'
-        + '<span class="proto-drug-name">' + esc(s.name) + '</span>'
-        + (allergic.length ? ' <span class="proto-tag warn">allergy: ' + esc(allergic.join(', ')) + '</span>' : '')
-        + (dupes.length ? ' <span class="proto-tag rx">already on: ' + esc(dupes.join(', ')) + '</span>' : '')
-        + '<span class="proto-drug-sub">' + esc(names.join(', ')) + '</span></div>';
+      return '<label data-set="' + s.id + '"><input type="radio" name="proto-set-pick">'
+        + '<span class="li"><span class="proto-drug-name">' + esc(s.name) + '</span>'
+        + (allergic.length ? ' <i class="oe-i allergy small no-click" title="Allergy: ' + esc(allergic.join(', ')) + '"></i>' : '')
+        + (dupes.length ? ' <i class="oe-i warning small no-click" title="Already on: ' + esc(dupes.join(', ')) + '"></i>' : '')
+        + '<span class="proto-opt-sub">' + esc(names.join(', '))
+        + (dupes.length ? ' &mdash; already on: ' + esc(dupes.join(', ')) : '')
+        + '</span></span></label>';
     }).join('') || '<div class="proto-empty">Nothing available to you</div>';
     openPopup('popup-set');
   }
@@ -1747,30 +2086,24 @@
 
   /* ---- indication ---- */
 
+  /* Indication uses the same one-click list as everything else on this dialog,
+     drawn from the patient's own recorded diagnoses rather than a free search.
+     The likely one is marked from the drug, so the common case is one click and
+     the reader can see why it was offered. */
   function renderIndicationChips(e) {
     var cat = CATALOGUE.filter(function (c) { return c.drug === e.drug; })[0] || {};
-    var chosen = e.indication;
+    var chosen = e.pendingIndication != null ? e.pendingIndication : e.indication;
     var suggested = !chosen && cat.sugg ? cat.sugg : null;
-    var html = DIAGNOSES.map(function (d) {
-      var on = chosen === d.id;
-      return '<button type="button" class="proto-chip' + (on ? ' on' : '')
-        + (suggested === d.id ? ' suggested' : '') + '" data-dx="' + d.id + '">'
-        + esc(d.name) + (d.eye ? '' : ' <span class="proto-chip-sub">systemic</span>')
-        + (suggested === d.id ? ' <span class="proto-chip-sub">suggested</span>' : '') + '</button>';
-    }).join('');
-    html += '<button type="button" class="proto-chip' + (!chosen ? ' on' : '') + '" data-dx="">Not recorded</button>';
-    $('#proto-edit-indication').innerHTML = html;
+    var opts = DIAGNOSES.map(function (d) {
+      return { value: d.id, label: d.name + (d.eye ? '' : ' (systemic)') + (suggested === d.id ? ' \u2022 likely' : '') };
+    }).concat([{ value: '', label: 'Not recorded' }]);
+    btnList('proto-edit-indication', opts, chosen || '');
   }
 
-  document.addEventListener('click', function (ev) {
-    var chip = ev.target.closest ? ev.target.closest('.proto-chip') : null;
-    if (!chip || !$('#proto-edit-indication').contains(chip)) return;
+  document.addEventListener('change', function (ev) {
+    if (!ev.target.closest || !ev.target.closest('#proto-edit-indication')) return;
     var e = findById(editingId);
-    e.pendingIndication = chip.dataset.dx || null;
-    $('#proto-edit-indication').querySelectorAll('.proto-chip').forEach(function (c) {
-      c.classList.toggle('on', (c.dataset.dx || null) === e.pendingIndication);
-      c.classList.remove('suggested');
-    });
+    if (e) e.pendingIndication = ev.target.value || null;
   });
 
   /* ---- advised future actions ---- */
@@ -2028,13 +2361,23 @@
     }).join('');
   }
 
-  /* Adding or editing a step changes how long the course runs, so the suggested
-     stop date is rewritten, exactly as picking a duration does. */
-  function taperChanged() { writeSuggestedEnd(); renderStopControl(); }
+  /* The steps run on from each other, so the last step's end is the end of the
+     course. Where the dialog is in dated mode that date is written into the end
+     field, because the end field is the thing that gets saved. */
+  function taperEnd() {
+    var at = $('#proto-edit-start').value || TODAY;
+    taperDraft.forEach(function (t) { at = addSpan(t.from > at ? t.from : at, t.duration); });
+    return at;
+  }
+
+  function taperChanged() {
+    if (taperDraft.length && endMode() === 'dated') $('#proto-edit-end').value = taperEnd();
+    renderStopControl();
+  }
 
   $('#proto-taper-add').addEventListener('click', function () {
-    var start = $('#proto-edit-start').value || TODAY;
-    var from = courseEnd(start, $('#proto-edit-duration').value, taperDraft) || start;
+    var from = taperDraft.length ? taperEnd()
+      : ($('#proto-edit-end').value || $('#proto-edit-start').value || TODAY);
     taperDraft.push({ from: from, dose: '1', freq: 'Twice daily', duration: '7 days' });
     taperChanged();
   });
@@ -2069,65 +2412,21 @@
      this fulfilment rather than of the patient's treatment. */
   var prescribing = null;
 
-  function openPrescribe(form) {
-    var f = FORM_TYPES[form];
+  /* Signing from the element creates the order there and then. There is no
+     confirmation dialog in between, because the bar already says what is
+     selected and which form it is going on, and the order is not frozen when it
+     is created: the dispensing instruction and location can still be set on the
+     pending order, and the record can still move under it. Freezing happens at
+     issue. Fewer screens, and nothing is lost that cannot be corrected before
+     the order leaves the building. */
+  function prescribeFromBar(form, sign) {
     var all = selectedEntries();
     var included = all.filter(function (e) { return orderableForms(e).indexOf(form) >= 0; });
     if (!included.length) return;
-    var excluded = all.filter(function (e) { return included.indexOf(e) === -1; });
-
     prescribing = { form: form, entries: included };
-
-    $('#proto-pr-title').textContent = f.label;
-
-    var intro = 'One order, one form. ' + esc(f.label) + ' for <strong>' + included.length
-      + '</strong> medication' + (included.length === 1 ? '' : 's') + '.';
-    if (excluded.length) {
-      intro += ' <strong>' + esc(excluded.map(function (e) { return e.drug; }).join(', '))
-        + '</strong> cannot go on this form, so ' + (excluded.length === 1 ? 'it stays' : 'they stay')
-        + ' selected for a separate order. Nothing is dropped silently.';
-    }
-    if (!f.pharmacy) {
-      intro += ' This form does not go through hospital pharmacy, so no dispensing signatures are required.';
-    }
-    $('#proto-pr-intro').innerHTML = intro;
-
-    /* The dispensing instruction belongs here, on the order, not on the medication
-       row. Pick "Hospital to supply and GP to continue" and the rows will say the
-       GP supplies these drugs once the order is issued. */
-    var conds = FORM_TYPES[form].conditions.filter(function (c) { return inst().conditions.indexOf(c) >= 0; });
-    if (!conds.length) conds = FORM_TYPES[form].conditions;
-    var chosen = defaultConditionFor(form);
-    $('#proto-pr-cond-wrap').hidden = conds.length < 2;
-    $('#proto-pr-cond').innerHTML = conds.map(function (c) {
-      return '<option value="' + c + '"' + (c === chosen ? ' selected' : '') + '>' + esc(COND_LABELS[c]) + '</option>';
-    }).join('');
-
-    $('#proto-pr-loc-head').hidden = !f.needsLocation;
-    $('#proto-pr-body').innerHTML = included.map(function (e) {
-      var locCell = '';
-      if (f.needsLocation) {
-        var locs = locationsFor(chosen);
-        locCell = '<td><select class="proto-loc" data-pr-loc="' + e.id + '">'
-          + locs.map(function (l) { return '<option' + (e.lastLocation === l ? ' selected' : '') + '>' + esc(l) + '</option>'; }).join('')
-          + '</select></td>';
-      }
-      return '<tr><td>' + esc(e.drug) + '<span class="proto-drug-sub">' + esc(e.sub) + '</span></td>'
-        + '<td>' + esc(directions(e)) + '</td>' + locCell + '</tr>';
-    }).join('');
-
-    $('#proto-pr-note').value = '';
-    $('#proto-pr-pin').value = '';
-    openPopup('popup-prescribe');
-    /* Focus the PIN, as EsignWidget does. The prescriber types six digits and the
-       order exists; there is no button to hunt for. */
-    $('#proto-pr-pin').focus();
+    createOrder(sign);
   }
 
-  /* Which dispense condition this order carries for this drug. Chosen when the
-     order is generated, from the conditions the institution maps to this form,
-     defaulting to the institution's default where it fits. It is never read off
-     the medication row, which no longer holds a condition at all. */
   function defaultConditionFor(form) {
     var all = FORM_TYPES[form || 'hospital'].conditions;
     var conds = all.filter(function (c) { return inst().conditions.indexOf(c) >= 0; });
@@ -2136,16 +2435,19 @@
   }
   function orderCondition(e, form) { return defaultConditionFor(form); }
 
+  function excludedFromForm(entries, form) {
+    return entries.filter(function (e) { return orderableForms(e).indexOf(form) === -1; });
+  }
+
   function createOrder(sign) {
     if (!prescribing) return;
     var form = prescribing.form;
     var f = FORM_TYPES[form];
-    var pin = $('#proto-pr-pin').value;
-    if (sign && !/^\d{6}$/.test(pin)) return;
-
+    var all = selectedEntries();
+    var cond = defaultConditionFor(form);
     var locs = {};
-    Array.prototype.forEach.call(document.querySelectorAll('[data-pr-loc]'), function (s) {
-      locs[s.dataset.prLoc] = s.value;
+    prescribing.entries.forEach(function (e) {
+      if (f.needsLocation) locs[e.id] = e.lastLocation || locationsFor(cond)[0];
     });
 
     /* Printing is a real-world side effect and cannot be undone by cancelling a
@@ -2159,11 +2461,11 @@
       date: TODAY,
       prescriber: user().name,
       formType: form,
-      condition: $('#proto-pr-cond').value || defaultConditionFor(form),
+      condition: cond,
       status: sign ? 'signed' : 'pending',
       entryIds: prescribing.entries.map(function (e) { return e.id; }),
       locations: locs,
-      notes: $('#proto-pr-note').value,
+      notes: '',
       signedAt: sign ? nowStamp() : null, signedBy: sign ? user().name : null,
       issuedAt: null, issuedBy: null, issueTrigger: null,
       printedAt: null, printedBy: null
@@ -2190,8 +2492,13 @@
       + (committedNow ? '. ' + committedNow + ' unsaved medication change'
           + (committedNow === 1 ? ' was' : 's were') + ' committed first, because an order cannot be '
           + 'generated from a record that only exists in the browser' : '')
-      + '. It is not frozen yet: change the medication record and it follows. It freezes when it is printed'
-      + (f.pharmacy ? ' or when pharmacy starts signing.' : '.'));
+      + '. It is not frozen yet: set the dispensing instruction and location on the order, change the '
+      + 'medication record and it follows. It freezes when it is printed'
+      + (f.pharmacy ? ' or when pharmacy starts signing.' : '.')
+      + (excludedFromForm(all, form).length
+          ? ' ' + esc(excludedFromForm(all, form).map(function (e) { return e.drug; }).join(', '))
+            + ' cannot go on this form, so it stays selected for a separate order.'
+          : ''));
   }
 
   $('#proto-commit-save').addEventListener('click', function () {
@@ -2214,13 +2521,6 @@
     alertBox('', n + ' unsaved change' + (n === 1 ? '' : 's') + ' discarded. '
       + 'Any order already issued is unaffected, because it is not part of this event.');
   });
-
-  /* Auto-submit on a complete PIN, mirroring EsignWidget.checkForPinAutoSubmit().
-     The six-digit length is EsignWidget's default pinLength. */
-  $('#proto-pr-pin').addEventListener('input', function () {
-    if (/^\d{6}$/.test(this.value)) createOrder(true);
-  });
-  $('#proto-pr-unsigned').addEventListener('click', function () { createOrder(false); });
 
   /* ---- sign ---- */
 
@@ -2414,9 +2714,33 @@
       + '. If the directions themselves need to change, cancel and reissue instead.');
   }
 
+  /* The OpenEyes collapse-data pattern: the header carries expand or collapse,
+     and the body is shown by inline display rather than the hidden attribute. */
+  document.addEventListener('click', function (ev) {
+    var head = ev.target.closest && ev.target.closest('.js-collapse-data-header');
+    if (!head) return;
+    var body = head.parentElement.querySelector('.js-collapse-data-content');
+    var open = head.classList.contains('collapse');
+    head.classList.toggle('collapse', !open);
+    head.classList.toggle('expand', open);
+    head.setAttribute('aria-expanded', String(!open));
+    body.style.display = open ? 'none' : 'block';
+  });
+
+  /* Allergies sit in the element footer beside the adders, as IDG shows them,
+     because they are a property of the patient that this element has to respect
+     rather than a row-level warning. */
+  function renderAllergies() {
+    var names = CATALOGUE.filter(function (c) { return c.allergy; })
+      .map(function (c) { return c.drug; });
+    $('#proto-allergy-list').innerHTML = ['Pollen'].concat(names)
+      .map(function (n) { return '<span class="proto-allergy">' + esc(n) + '</span>'; }).join('');
+  }
+
   /* ----------------------------------------------------------------- start */
 
   seed();
+  renderAllergies();
   STATE.committed = cloneEntries();
   switchView('record');
   render();

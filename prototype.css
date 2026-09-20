@@ -15,7 +15,6 @@ main#event-content.main-event {
    OpenEyes scrolls inside .main-event, which truncates a full-page capture. */
 body.proto-capture.oe-grid.sem { height: auto; overflow: visible; }
 body.proto-capture .main-event { overflow: visible; height: auto; }
-body.proto-capture .proto-sticky-bar { position: static; }
 
 .proto-guide {
   margin: 4px 0 14px;
@@ -66,7 +65,6 @@ tr.proto-row + tr.proto-row td { border-top: 1px solid rgba(128,128,128,0.25); }
 .proto-directions { line-height: 1.5; }
 .proto-dates { font-size: 0.8125rem; line-height: 1.5; }
 
-.proto-tag {
   display: inline-block;
   font-size: 0.6875rem;
   line-height: 1;
@@ -76,11 +74,6 @@ tr.proto-row + tr.proto-row td { border-top: 1px solid rgba(128,128,128,0.25); }
   vertical-align: middle;
   white-space: nowrap;
 }
-.proto-tag.planned { background: #6b8fb5; color: #fff; }
-.proto-tag.held { background: #c9962e; color: #201400; }
-.proto-tag.pinned { background: #2f6f4f; color: #fff; }
-.proto-tag.override { background: #fff; color: #2f6f4f; border: 1px dashed #2f6f4f; }
-.proto-tag.advised { background: #8a5a00; color: #fff; }
 
 /* Indication picker */
 .proto-indication { margin: 12px 0 4px; }
@@ -111,14 +104,8 @@ tr.proto-row + tr.proto-row td { border-top: 1px solid rgba(128,128,128,0.25); }
 .proto-field[hidden] { display: none !important; }
 .proto-field-wide { display: block; width: 100%; margin-top: 8px; }
 .proto-field-wide textarea, .proto-field-wide input { width: 100%; }
-.proto-tag.pgd { background: #5a5a5a; color: #fff; }
-.proto-tag.taper { background: #7a6ca8; color: #fff; }
-.proto-tag.rx { background: #8a8a8a; color: #fff; }
-.proto-tag.rx.issued { background: #2c5d8f; color: #fff; }
 
 /* Two different markers: not yet committed, versus changed at this visit. */
-.proto-tag.unsaved { background: #b3541e; color: #fff; }
-.proto-tag.thisvisit { background: #fff; color: #2c5d8f; border: 1px solid #2c5d8f; }
 tr.proto-row.is-unsaved td { box-shadow: inset 3px 0 0 #b3541e; }
 
 /* ---------- unsaved-changes bar ---------- */
@@ -204,7 +191,6 @@ table.proto-meds col.proto-c-actions { width: 27%; }
 
 /* Search results reuse the tag shape to warn about an allergy or a product the
    patient is already on. */
-.proto-tag.warn { background: #d9a2a2; color: #3a1010; }
 
 /* Laterality uses the stock OpenEyes oe-lat sprite, which draws both eyes in a
    fixed 30px frame. Keeping it in its own column is what makes the sides
@@ -272,23 +258,6 @@ table.proto-meds td.proto-actions button { margin: 0 0 2px 2px; }
 
 /* ---------- sticky prescribe bar ---------- */
 
-.proto-sticky-bar {
-  position: fixed;
-  left: 0; right: 0; bottom: 0;
-  background: rgba(30,30,32,0.94);
-  border-top: 2px solid #4a7fae;
-  padding: 10px 24px;
-  z-index: 60;
-}
-html.theme-light .proto-sticky-bar { background: rgba(240,240,242,0.97); }
-.proto-sticky-inner {
-  max-width: 1400px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
 #proto-prescribe-summary { font-size: 0.8125rem; }
 
 /* ---------- popups ---------- */
@@ -370,11 +339,120 @@ table.proto-history-table tr + tr td { border-top: 1px solid rgba(128,128,128,0.
 /* Dispense location, shown only when something is actually being supplied */
 .proto-loc { margin-top: 3px; display: block; }
 
-/* Set and PGD pickers */
-.proto-set-list .proto-result { padding: 7px 9px; }
+/* Set and PGD pickers, on the same click-to-pick pattern as the adder */
+.proto-set-list .li { display: block; }
+
+/* The long-tail selects under the route and unit button lists */
+.proto-longtail { margin-top: 8px; width: 100%; font-size: 0.8125rem; }
 
 .oe-full-header .buttons-right { display: flex; flex-wrap: wrap; justify-content: flex-end; }
 
 /* Conflict list inside the warning popup */
 .proto-dup-list { margin-top: 5px; }
 .proto-dup-list div { margin-top: 2px; }
+
+/* ------------------------------------------------------------------ *
+ * Design-system alignment
+ *
+ * Everything below either uses a class the OpenEyes stylesheet already
+ * defines (highlighter, btn-list, highlight as-button, oe-i, oe-lat) or
+ * lays those classes out. No new colours are invented here: the palette
+ * comes from the design system, which is the point.
+ * ------------------------------------------------------------------ */
+
+/* ---- one element, four groups ---- */
+.proto-group { margin-bottom: 14px; }
+.proto-group-title {
+  font-size: 0.875rem; font-weight: bold; margin: 0 0 4px;
+  padding-bottom: 3px; border-bottom: 1px solid rgba(255,255,255,0.12);
+}
+html.theme-light .proto-group-title { border-bottom-color: rgba(0,0,0,0.12); }
+.proto-group-title .proto-count { font-weight: normal; opacity: 0.6; }
+.proto-group .js-collapse-data-header .proto-count { font-weight: normal; opacity: 0.6; }
+
+.proto-element-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-top: 10px; padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.12);
+}
+html.theme-light .proto-element-footer { border-top-color: rgba(0,0,0,0.12); }
+.proto-allergies { display: flex; align-items: center; gap: 8px; font-size: 0.8125rem; }
+.proto-allergy { opacity: 0.85; }
+.proto-allergy + .proto-allergy::before { content: '\2022'; padding: 0 6px; opacity: 0.5; }
+.proto-element-footer .add-data-actions { display: flex; gap: 6px; align-items: center; }
+#proto-btn-add { padding-inline: 10px; }
+#proto-btn-add .oe-i { margin: 0; }
+
+/* ---- prescribe bar, inside the element, top and bottom ---- */
+.proto-rx-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+  margin: 8px 0; padding: 7px 10px; font-size: 0.8125rem;
+  background: rgba(255,255,255,0.07); border-left: 3px solid #0c7915;
+}
+html.theme-light .proto-rx-bar { background: rgba(0,0,0,0.05); }
+.proto-rx-bar[hidden] { display: none; }
+.proto-rx-bar-sel { flex: 1 1 200px; min-width: 0; }
+.proto-rx-count { font-weight: bold; }
+.proto-rx-names { opacity: 0.75; }
+.proto-rx-forms { display: flex; gap: 4px; border: 0; padding: 0; margin: 0; }
+.proto-pin-wrap { display: flex; align-items: center; gap: 6px; background: #b8860b; padding: 3px 4px 3px 7px; }
+.proto-pin-wrap.is-draft { background: #55595f; }
+.proto-rx-pin { width: 74px; text-align: center; letter-spacing: 3px; }
+.proto-pin-label { font-weight: bold; color: #fff; padding: 0 8px; cursor: pointer; }
+
+/* ---- row marks ---- */
+.proto-rx-ref { white-space: nowrap; opacity: 0.8; }
+.proto-rx-ref.is-issued { opacity: 1; font-weight: bold; }
+table.proto-meds .highlighter { margin-right: 4px; }
+
+/* ---- adder ---- */
+.proto-adder-cols { display: flex; align-items: flex-start; gap: 10px; }
+.proto-adder-cols > div { min-width: 0; }
+.proto-adder-fill { flex: 1 1 auto; }
+.proto-adder-cols h4 { margin: 0 0 6px; font-size: 0.8125rem; }
+.proto-adder-cols .btn-list { max-height: 260px; overflow-y: auto; }
+.proto-adder-cols .btn-list .li .fade { font-size: 0.75rem; }
+.proto-stack { display: flex; flex-direction: column; gap: 5px; }
+.proto-adder-note { margin-top: 12px; font-size: 0.8125rem; max-width: 220px; }
+.proto-add-picked { margin-bottom: 6px; }
+
+/* ---- edit dialog ---- */
+.proto-med-setup { display: flex; align-items: flex-start; gap: 12px; }
+.proto-med-setup > div { min-width: 0; }
+.proto-med-setup h4 { margin: 0 0 6px; font-size: 0.8125rem; }
+.proto-med-setup .btn-list { max-height: 300px; overflow-y: auto; }
+.proto-freq-col { flex: 1 1 auto; }
+.proto-dose-col input { width: 72px; }
+
+.proto-med-dates { display: flex; align-items: flex-start; gap: 24px; }
+.proto-med-dates h4 { margin: 0 0 6px; font-size: 0.8125rem; }
+.proto-end-row { display: flex; align-items: center; gap: 18px; }
+.proto-quick-row { display: flex; align-items: center; gap: 6px; }
+.proto-quick-end fieldset { border: 0; padding: 0; margin: 0 0 4px; display: inline-flex; gap: 2px; flex-wrap: wrap; }
+.proto-anchor-days { display: inline-flex; align-items: center; gap: 5px; }
+.proto-anchor-days input { width: 52px; }
+.proto-anchor-days[hidden] { display: none; }
+.proto-rxtaper-col { margin-left: auto; }
+.proto-rxtaper-col label { display: block; }
+
+.proto-med-extra { display: flex; align-items: flex-start; gap: 30px; }
+.proto-med-extra h4 { margin: 0 0 6px; font-size: 0.8125rem; font-weight: bold; }
+.proto-inline-list { display: flex; flex-wrap: wrap; gap: 3px; }
+.proto-inline-list label { flex: 0 0 auto; }
+.proto-indication-col { flex: 1 1 auto; }
+
+.proto-allergy-bar { padding: 6px 0; }
+.proto-allergy-bar h4 { display: inline-block; margin: 0 14px 0 0; }
+.proto-allergy-bar .row-list { display: inline-block; margin: 0 14px 0 0; }
+
+.btn-list label.is-on-record .li { opacity: 0.45; }
+.proto-adder-cols .btn-list .li { display: block; }
+.proto-opt-sub { display: block; font-size: 0.75rem; opacity: 0.7; }
+/* IDG runs the confirming action as a full-width green bar with Cancel beside
+   it, so the primary action is unmissable and the escape hatch is still there. */
+.oe-popup.max .popup-actions { display: flex; gap: 6px; margin-top: 14px; }
+.oe-popup.max .popup-actions .green { flex: 1 1 auto; }
+.oe-popup.max .oe-popup-content { max-height: 72vh; overflow-y: auto; }
+
+.btn-list.is-disabled { opacity: 0.4; pointer-events: none; }
+.proto-quick-end .highlight.as-button { margin: 0 2px 2px 0; }

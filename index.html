@@ -104,12 +104,25 @@
     <div id="proto-alerts"></div>
     <div id="proto-reconcile"></div>
 
-    <section class="element edit">
+    <section class="element edit" id="proto-meds-element">
       <header class="element-header">
-        <h3 class="element-title">Eye medications</h3>
+        <h3 class="element-title">Medications</h3>
       </header>
       <div class="element-data full-width">
-        <div class="data-group">
+        <div class="proto-rx-bar" id="proto-rx-bar-top" hidden>
+          <div class="proto-rx-bar-sel"><span class="proto-rx-count"></span> <span class="proto-rx-names"></span></div>
+          <fieldset class="proto-rx-forms"></fieldset>
+          <label class="highlight inline proto-rx-draft"><input type="checkbox" class="proto-draft-cb">Save as draft prescription</label>
+          <span class="proto-pin-wrap">
+            <i class="oe-i padlock small no-click"></i>
+            <input type="password" class="proto-rx-pin" maxlength="6" inputmode="numeric" placeholder="****" autocomplete="off">
+            <span class="proto-pin-label">Sign by PIN</span>
+          </span>
+        </div>
+
+        <div class="proto-group" id="group-eye">
+          <h4 class="proto-group-title">Eye <span class="proto-count"></span></h4>
+          <div class="data-group">
           <table class="medications entries proto-meds" data-group="eye">
             <colgroup>
               <col class="proto-c-drug"><col class="proto-c-lat"><col class="proto-c-dir"><col class="proto-c-dates">
@@ -128,23 +141,12 @@
             </thead>
             <tbody id="tbody-eye"></tbody>
           </table>
-        </div>
-        <div class="flex-layout flex-right">
-          <div class="add-data-actions flex-item-bottom">
-            <button class="button hint proto-set-add" id="proto-btn-pgd" type="button" hidden>Add PGD set</button>
-            <button class="button hint proto-set-add" id="proto-btn-set" type="button">Add standard set</button>
-            <button class="button hint green proto-add" data-group="eye" type="button">Add eye medication</button>
           </div>
         </div>
-      </div>
-    </section>
 
-    <section class="element edit">
-      <header class="element-header">
-        <h3 class="element-title">Systemic medications relevant to eye care</h3>
-      </header>
-      <div class="element-data full-width">
-        <div class="data-group">
+        <div class="proto-group" id="group-systemic-ophth">
+          <h4 class="proto-group-title">Systemic, relevant to eye care <span class="proto-count"></span></h4>
+          <div class="data-group">
           <table class="medications entries proto-meds" data-group="systemic-ophth">
             <colgroup>
               <col class="proto-c-drug"><col class="proto-c-lat"><col class="proto-c-dir"><col class="proto-c-dates">
@@ -163,28 +165,15 @@
             </thead>
             <tbody id="tbody-systemic-ophth"></tbody>
           </table>
-        </div>
-        <div class="flex-layout flex-right">
-          <div class="add-data-actions flex-item-bottom">
-            <button class="button hint green proto-add" data-group="systemic-ophth" type="button">Add systemic medication</button>
           </div>
         </div>
-      </div>
-    </section>
 
-    <!-- Collapsed by default. These are the drugs we neither prescribe nor act on,
-         and at ten or fifteen rows they push everything that matters below the
-         fold. The real OpenEyes collapse-data pattern, so the control behaves the
-         way it does everywhere else in the application. -->
-    <section class="element edit">
-      <header class="element-header">
-        <h3 class="element-title">Other systemic medications</h3>
-      </header>
-      <div class="element-data full-width js-collapse-data collapse-data">
-        <div class="js-collapse-data-header collapse-data-header-icon expand" id="proto-collapse-other"
-             role="button" tabindex="0" aria-expanded="false">Not relevant to eye care <span class="proto-count" id="proto-count-other"></span></div>
-        <div class="js-collapse-data-content collapse-data-content" style="display: none;">
-        <div class="data-group">
+        <div class="proto-group js-collapse-data collapse-data" id="group-systemic-other">
+          <div class="js-collapse-data-header collapse-data-header-icon expand" id="proto-collapse-other" role="button" tabindex="0" aria-expanded="false">
+            Systemic, not relevant to eye care <span class="proto-count"></span>
+          </div>
+          <div class="js-collapse-data-content collapse-data-content" style="display: none;">
+            <div class="data-group">
           <table class="medications entries proto-meds" data-group="systemic-other">
             <colgroup>
               <col class="proto-c-drug"><col class="proto-c-lat"><col class="proto-c-dir"><col class="proto-c-dates">
@@ -203,21 +192,17 @@
             </thead>
             <tbody id="tbody-systemic-other"></tbody>
           </table>
+            </div>
+          </div>
         </div>
-        </div>
-      </div>
-    </section>
 
-    <section class="element edit" id="proto-stopped-section">
-      <header class="element-header">
-        <h3 class="element-title">Stopped</h3>
-      </header>
-      <div class="element-data full-width js-collapse-data collapse-data">
-        <div class="js-collapse-data-header collapse-data-header-icon expand" id="proto-collapse-stopped"
-             role="button" tabindex="0" aria-expanded="false">Previously taken <span class="proto-count" id="proto-count-stopped"></span></div>
-        <div class="js-collapse-data-content collapse-data-content" style="display: none;">
-        <div class="data-group">
-          <table class="medications entries proto-meds">
+        <div class="proto-group js-collapse-data collapse-data" id="group-stopped">
+          <div class="js-collapse-data-header collapse-data-header-icon expand" id="proto-collapse-stopped" role="button" tabindex="0" aria-expanded="false">
+            Stopped <span class="proto-count"></span>
+          </div>
+          <div class="js-collapse-data-content collapse-data-content" style="display: none;">
+            <div class="data-group">
+          <table class="medications entries proto-meds" data-group="stopped">
             <colgroup>
               <col class="proto-c-drug"><col class="proto-c-lat"><col class="proto-c-dir"><col class="proto-c-dates">
               <col class="proto-c-supply"><col class="proto-c-order"><col class="proto-c-actions">
@@ -227,17 +212,31 @@
             </thead>
             <tbody id="tbody-stopped"></tbody>
           </table>
+            </div>
+          </div>
         </div>
+
+        <div class="proto-rx-bar" id="proto-rx-bar-bottom" hidden>
+          <div class="proto-rx-bar-sel"><span class="proto-rx-count"></span> <span class="proto-rx-names"></span></div>
+          <fieldset class="proto-rx-forms"></fieldset>
+          <label class="highlight inline proto-rx-draft"><input type="checkbox" class="proto-draft-cb">Save as draft prescription</label>
+          <span class="proto-pin-wrap">
+            <i class="oe-i padlock small no-click"></i>
+            <input type="password" class="proto-rx-pin" maxlength="6" inputmode="numeric" placeholder="****" autocomplete="off">
+            <span class="proto-pin-label">Sign by PIN</span>
+          </span>
+        </div>
+
+        <div class="proto-element-footer">
+          <div class="proto-allergies"><i class="oe-i allergy small pad-r no-click"></i><span id="proto-allergy-list"></span></div>
+          <div class="add-data-actions">
+            <button class="button hint proto-set-add" id="proto-btn-pgd" type="button" hidden>Add PGD</button>
+            <button class="button hint proto-set-add" id="proto-btn-set" type="button">Add Medication Set</button>
+            <button class="button hint green proto-add" id="proto-btn-add" type="button" title="Add medication"><i class="oe-i plus"></i></button>
+          </div>
         </div>
       </div>
     </section>
-
-    <div class="proto-sticky-bar" id="proto-prescribe-bar">
-      <div class="proto-sticky-inner">
-        <span id="proto-prescribe-summary">Nothing selected</span>
-        <span class="proto-form-buttons" id="proto-form-buttons"></span>
-      </div>
-    </div>
 
   </div>
 
@@ -396,55 +395,121 @@
 <!-- ============================= POPUPS ============================= -->
 
 <div class="oe-popup-wrap" id="popup-add" hidden>
-  <div class="oe-popup">
+  <div class="oe-popup max">
     <div class="title">Add medication</div>
     <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
     <div class="oe-popup-content">
-      <input type="text" id="proto-search" class="cols-full" placeholder="Search medications (try 'lat', 'dex', 'pred')" autocomplete="off">
-      <div id="proto-search-results" class="proto-results"></div>
+      <hr class="divider">
+      <div class="proto-adder-cols">
+        <div>
+          <h4>Common eye</h4>
+          <fieldset class="btn-list multiline-fixed" id="proto-add-common-eye"></fieldset>
+        </div>
+        <div>
+          <h4>Common systemic</h4>
+          <fieldset class="btn-list multiline-fixed" id="proto-add-common-sys"></fieldset>
+        </div>
+        <div class="proto-adder-fill">
+          <h4>Search all medications</h4>
+          <input class="search cols-full" id="proto-search" placeholder="search" autocomplete="off">
+          <hr>
+          <fieldset class="btn-list multiline-fixed" id="proto-search-results"></fieldset>
+        </div>
+        <div>
+          <h4>Search options</h4>
+          <div class="proto-stack">
+            <label class="highlight inline"><input type="checkbox" id="proto-add-brands">Include brand names</label>
+            <label class="highlight inline"><input type="checkbox" id="proto-add-pf">Preservative free medications</label>
+          </div>
+          <div class="proto-adder-note" id="proto-add-note"></div>
+        </div>
+      </div>
+      <div class="popup-actions flex-right">
+        <button class="green hint" id="proto-add-next" type="button" disabled>Add &amp; edit medication</button>
+        <button class="button proto-close" type="button">Cancel</button>
+      </div>
     </div>
   </div>
 </div>
 
 <div class="oe-popup-wrap" id="popup-edit" hidden>
-  <div class="oe-popup">
-    <div class="title">Change medication</div>
+  <div class="oe-popup max">
+    <div class="title" id="proto-edit-title">Change medication</div>
     <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
     <div class="oe-popup-content">
-      <p id="proto-edit-drug" class="proto-strong"></p>
-      <div class="proto-field-row">
-        <label class="proto-field">Dose <input type="text" id="proto-edit-dose"></label>
-        <label class="proto-field">Unit <input type="text" id="proto-edit-unit"></label>
-        <label class="proto-field">Frequency
-          <select id="proto-edit-freq">
-            <option>Once daily</option><option>Twice daily</option><option>Three times daily</option>
-            <option>Four times daily</option><option>At night</option><option>Every 2 hours</option><option>As required</option>
-          </select>
-        </label>
+
+      <div class="proto-allergy-bar" id="proto-edit-allergy" hidden>
+        <h4><span class="highlighter warning">Allergies to drug</span></h4>
+        <ul class="row-list"><li><i class="oe-i allergy small pad-r no-click"></i><span id="proto-edit-allergy-name"></span></li></ul>
+        <label class="highlight inline"><input type="checkbox" id="proto-edit-allergy-ack">Confirm awareness of patient allergy</label>
       </div>
-      <div class="proto-field-row">
-        <label class="proto-field">Route
-          <select id="proto-edit-route">
-            <option>Eye</option><option>Oral</option><option>Intravitreal</option><option>Topical</option><option>Subconjunctival</option>
-          </select>
-        </label>
-        <label class="proto-field">Side
-          <select id="proto-edit-lat"><option>Right</option><option>Left</option><option>Both</option><option value="">Not applicable</option></select>
-        </label>
-        <label class="proto-field">Start date <input type="date" id="proto-edit-start"></label>
-        <label class="proto-field">Duration
-          <select id="proto-edit-duration"></select>
-        </label>
-        <label class="proto-field" id="proto-edit-anchor-wrap" hidden>Days before
-          <input type="number" id="proto-edit-anchordays" value="7" min="0" max="90">
-        </label>
-        <label class="proto-field" id="proto-edit-end-wrap">Stop date
-          <input type="date" id="proto-edit-end">
-          <span class="proto-optional" id="proto-edit-anchor-note"></span>
-        </label>
+
+      <hr class="divider">
+
+      <div class="proto-med-setup">
+        <div>
+          <h4>Route</h4>
+          <fieldset class="btn-list" id="proto-edit-route"></fieldset>
+          <select id="proto-edit-route-all" class="proto-longtail"><option value="">&hellip; all routes</option></select>
+        </div>
+        <div>
+          <h4>Laterality</h4>
+          <fieldset class="btn-list" id="proto-edit-lat"></fieldset>
+        </div>
+        <div class="proto-dose-col">
+          <h4>Dose</h4>
+          <input type="number" id="proto-edit-dose" class="fixed-width-small" min="0" step="any">
+        </div>
+        <div>
+          <h4>Units</h4>
+          <fieldset class="btn-list" id="proto-edit-unit"></fieldset>
+          <select id="proto-edit-unit-all" class="proto-longtail"><option value="">&hellip; all units</option></select>
+        </div>
+        <div class="proto-freq-col">
+          <h4>Frequency</h4>
+          <fieldset class="btn-list" id="proto-edit-freq"></fieldset>
+        </div>
       </div>
-      <div class="proto-taper-block" id="proto-edit-taper-block">
-        <div class="proto-indication-label">Reducing course <span class="proto-optional">optional, each step follows the one above</span></div>
+
+      <hr class="divider">
+
+      <div class="proto-med-dates">
+        <div class="proto-start-col">
+          <h4>Start date</h4>
+          <input type="date" id="proto-edit-start">
+        </div>
+        <div class="proto-end-col">
+          <h4>End date</h4>
+          <div class="proto-end-row">
+            <input type="date" id="proto-edit-end">
+            <label class="highlight inline"><input type="checkbox" id="proto-edit-ongoing">Ongoing</label>
+          </div>
+          <hr class="spacer">
+          <div class="proto-quick-end" id="proto-quick-end">
+            <div class="proto-quick-row">
+              <fieldset id="proto-quick-days"></fieldset><span class="fade">days</span>
+            </div>
+            <fieldset id="proto-quick-periods"></fieldset>
+            <div class="proto-quick-row">
+              <fieldset id="proto-quick-anchor"></fieldset>
+              <label class="proto-anchor-days" id="proto-edit-anchor-wrap" hidden>
+                <input type="number" id="proto-edit-anchordays" value="7" min="0" max="90"><span class="fade">days before</span>
+              </label>
+            </div>
+            <small class="fade" id="proto-quick-note">Quick set end date from today</small>
+          </div>
+          <hr class="spacer">
+          <button type="button" id="proto-stop-today"><i class="oe-i stop small pad-r no-click"></i>Stop today</button>
+        </div>
+        <div class="proto-rxtaper-col">
+          <h4>Dispense / taper</h4>
+          <label class="highlight inline"><input type="checkbox" id="proto-edit-taper-on"><i class="oe-i taper small pad no-click"></i>&emsp;Taper medication</label>
+          <hr class="spacer">
+          <label class="highlight inline" id="proto-edit-dispense-wrap"><input type="checkbox" id="proto-edit-dispense"><i class="oe-i drug-rx small pad no-click"></i>&emsp;<b>Dispense</b>&emsp;(add to the next order)</label>
+        </div>
+      </div>
+
+      <div class="proto-taper-block" id="proto-edit-taper-block" hidden>
         <table class="standard proto-taper-table">
           <thead><tr><th>From</th><th>Dose</th><th>Frequency</th><th>Duration</th><th></th></tr></thead>
           <tbody id="proto-taper-body"></tbody>
@@ -452,20 +517,26 @@
         <div class="flex-layout flex-right">
           <button class="button hint green" id="proto-taper-add" type="button">Add step</button>
         </div>
-        <div class="proto-course-end" id="proto-edit-course-end"></div>
       </div>
-      <div class="proto-field-row">
-        <label class="proto-field proto-field-wide">Responsibility to supply <span class="proto-optional">who we are relying on from now on</span>
-          <select id="proto-edit-supply"></select>
-        </label>
+      <div class="proto-course-end" id="proto-edit-course-end"></div>
+
+      <hr class="divider">
+
+      <div class="proto-med-extra">
+        <div>
+          <h4>Responsibility to supply <span class="proto-optional">who we are relying on from now on</span></h4>
+          <fieldset class="btn-list proto-inline-list" id="proto-edit-supply"></fieldset>
+        </div>
+        <div class="proto-indication-col">
+          <h4>Indication <span class="proto-optional">optional, from this patient's recorded diagnoses</span></h4>
+          <fieldset class="btn-list proto-inline-list" id="proto-edit-indication"></fieldset>
+        </div>
       </div>
-      <div class="proto-indication">
-        <div class="proto-indication-label">Indication <span class="proto-optional">optional, from this patient's recorded diagnoses</span></div>
-        <div id="proto-edit-indication" class="proto-chips"></div>
-      </div>
+
       <div class="alert-box proto-inline-note" id="proto-edit-rx-note" hidden></div>
       <div class="popup-actions flex-right">
-        <button class="button green" id="proto-edit-save" type="button">Save change</button>
+        <button class="green hint" id="proto-edit-save" type="button">Update medication</button>
+        <button class="button proto-close" type="button">Cancel</button>
       </div>
     </div>
   </div>
@@ -477,7 +548,7 @@
     <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
     <div class="oe-popup-content">
       <div class="alert-box proto-inline-note" id="proto-set-note"></div>
-      <div id="proto-set-list" class="proto-set-list"></div>
+      <fieldset id="proto-set-list" class="btn-list multiline-fixed proto-set-list"></fieldset>
     </div>
   </div>
 </div>
@@ -574,34 +645,6 @@
       <div class="popup-actions flex-right">
         <button class="button" id="proto-dup-anyway" type="button" hidden>Add anyway</button>
         <button class="button green" id="proto-dup-edit" type="button">Change the existing entry</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="oe-popup-wrap" id="popup-prescribe" hidden>
-  <div class="oe-popup">
-    <div class="title" id="proto-pr-title">Hospital prescription</div>
-    <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
-    <div class="oe-popup-content">
-      <div class="alert-box" id="proto-pr-intro"></div>
-      <table class="standard proto-sign-table">
-        <thead><tr><th>Drug</th><th>Directions</th><th id="proto-pr-loc-head">Dispense location</th></tr></thead>
-        <tbody id="proto-pr-body"></tbody>
-      </table>
-      <label class="proto-field proto-field-wide" id="proto-pr-cond-wrap">Dispensing instruction
-        <select id="proto-pr-cond"></select>
-      </label>
-      <label class="proto-field proto-field-wide">Note for pharmacy <span class="proto-optional">optional, printed on the order</span>
-        <input type="text" id="proto-pr-note" placeholder="e.g. owed items to follow">
-      </label>
-      <label class="proto-field proto-field-wide proto-pin-field">Enter PIN to sign and create the order
-        <input type="password" id="proto-pr-pin" inputmode="numeric" maxlength="6" autocomplete="off"
-               class="user-pin-entry" placeholder="6 digits">
-        <span class="proto-optional">Signs as soon as six digits are entered, as every other PIN field in OpenEyes does. Any six digits work here.</span>
-      </label>
-      <div class="popup-actions flex-right">
-        <button class="button" id="proto-pr-unsigned" type="button">Create without signing</button>
       </div>
     </div>
   </div>
