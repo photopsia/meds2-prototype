@@ -1,0 +1,363 @@
+/* Prototype-only styling. Everything else comes from the real OpenEyes stylesheet.
+   Classes are prefixed proto- so it is obvious what is scaffolding and what is OE. */
+
+/* The real "sem" grid reserves a 200px patient/event sidebar. This prototype has
+   no event sidebar, so collapse the grid to header / event nav / main. */
+body.open-eyes.oe-grid.sem {
+  grid: "header" 60px "eventheader" 38px "main" 1fr / 1fr;
+}
+main#event-content.main-event {
+  margin-inline: auto;
+  padding: 14px 16px 150px;
+}
+
+/* Toggled only when capturing full-length screenshots for the written report:
+   OpenEyes scrolls inside .main-event, which truncates a full-page capture. */
+body.proto-capture.oe-grid.sem { height: auto; overflow: visible; }
+body.proto-capture .main-event { overflow: visible; height: auto; }
+body.proto-capture .proto-sticky-bar { position: static; }
+
+.proto-guide {
+  margin: 4px 0 14px;
+  line-height: 1.5;
+}
+.proto-guide strong { margin-right: 4px; }
+
+.proto-subtitle {
+  font-size: 0.8125rem;
+  opacity: 0.75;
+  margin: -6px 0 14px 2px;
+}
+h2.event-title { margin-bottom: 8px; }
+
+.proto-role-switch {
+  color: var(--text, #333);
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+}
+.proto-role-switch select { font-size: 0.75rem; max-width: 190px; }
+
+/* OE button and field styles set display, which beats the hidden attribute */
+[hidden] { display: none !important; }
+
+.proto-allergy-text {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #b8443c;
+  color: #fff;
+  white-space: nowrap;
+}
+
+/* ---------- medication tables ---------- */
+
+table.proto-meds { width: 100%; }
+table.proto-meds th { text-align: left; font-weight: 600; }
+table.proto-meds td { vertical-align: top; padding-top: 8px; padding-bottom: 8px; }
+
+tr.proto-row + tr.proto-row td { border-top: 1px solid rgba(128,128,128,0.25); }
+
+.proto-drug-name { font-weight: 600; }
+.proto-drug-sub { display: block; font-size: 0.75rem; opacity: 0.75; margin-top: 2px; }
+
+.proto-directions { line-height: 1.5; }
+.proto-dates { font-size: 0.8125rem; line-height: 1.5; }
+
+.proto-tag {
+  display: inline-block;
+  font-size: 0.6875rem;
+  line-height: 1;
+  padding: 3px 7px;
+  border-radius: 9px;
+  margin-right: 4px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.proto-tag.side-r { background: #d9a2a2; color: #3a1010; }
+.proto-tag.side-l { background: #a2b6d9; color: #101f3a; }
+.proto-tag.side-b { background: #c0b3d6; color: #221436; }
+.proto-tag.planned { background: #6b8fb5; color: #fff; }
+.proto-tag.held { background: #c9962e; color: #201400; }
+.proto-tag.pinned { background: #2f6f4f; color: #fff; }
+.proto-tag.override { background: #fff; color: #2f6f4f; border: 1px dashed #2f6f4f; }
+.proto-tag.advised { background: #8a5a00; color: #fff; }
+
+/* Indication picker */
+.proto-indication { margin: 12px 0 4px; }
+.proto-indication-label { font-size: 12px; margin-bottom: 4px; }
+.proto-optional { opacity: 0.65; font-style: italic; }
+.proto-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.proto-chips .proto-chip {
+  border: 1px solid #9aa0a6 !important;
+  background: #fff !important;
+  color: #333 !important;
+  border-radius: 12px; padding: 3px 10px; font-size: 12px; cursor: pointer;
+}
+.proto-chips .proto-chip:hover { border-color: #333 !important; }
+.proto-chips .proto-chip.on {
+  background: #2f6f4f !important; border-color: #2f6f4f !important; color: #fff !important; font-weight: 700;
+}
+.proto-chips .proto-chip.suggested {
+  border-style: dashed !important; border-color: #8a5a00 !important; color: #8a5a00 !important;
+}
+.proto-chip-sub { opacity: 0.6; font-size: 11px; font-weight: 400; }
+.proto-for { font-style: italic; opacity: 0.8; }
+
+/* Advised future actions, awaiting confirmation */
+.proto-advice-line { display: block; margin-top: 3px; font-size: 12px; color: #8a5a00; }
+.proto-reconcile-list { margin: 6px 0 0; padding-left: 16px; }
+.proto-reconcile-list li { margin-bottom: 4px; }
+.proto-btn-confirm { background: #8a5a00 !important; color: #fff !important; border-color: #8a5a00 !important; }
+.proto-field[hidden] { display: none !important; }
+.proto-field-wide { display: block; width: 100%; margin-top: 8px; }
+.proto-field-wide textarea, .proto-field-wide input { width: 100%; }
+.proto-tag.pgd { background: #5a5a5a; color: #fff; }
+.proto-tag.taper { background: #7a6ca8; color: #fff; }
+.proto-tag.rx { background: #8a8a8a; color: #fff; }
+.proto-tag.rx.issued { background: #2c5d8f; color: #fff; }
+
+/* Two different markers: not yet committed, versus changed at this visit. */
+.proto-tag.unsaved { background: #b3541e; color: #fff; }
+.proto-tag.thisvisit { background: #fff; color: #2c5d8f; border: 1px solid #2c5d8f; }
+tr.proto-row.is-unsaved td { box-shadow: inset 3px 0 0 #b3541e; }
+
+/* ---------- unsaved-changes bar ---------- */
+
+.proto-commit-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-left: 4px solid #b3541e;
+  background: rgba(179,84,30,0.12);
+  line-height: 1.45;
+}
+.proto-commit-bar[hidden] { display: none !important; }
+.proto-commit-actions { display: flex; gap: 6px; flex: none; }
+
+/* The change dialog now carries dates and the reducing course, so it needs more
+   room than the design system's default popup height before it starts scrolling. */
+#popup-edit .oe-popup-content { max-height: min(78vh, 780px); }
+
+/* ---------- duration and taper, on the add/change dialog ---------- */
+
+.proto-taper-block { margin: 12px 0 4px; }
+.proto-taper-block .proto-taper-table { margin-top: 4px; }
+.proto-taper-block .proto-taper-table input { width: 100%; box-sizing: border-box; }
+.proto-taper-block .proto-taper-table select { width: 100%; box-sizing: border-box; }
+.proto-course-end { font-size: 12px; opacity: 0.8; margin-top: 6px; }
+
+/* The stop date is shown, never typed. A date field beside a duration field is
+   two controls that can disagree, and nothing on screen would say which one the
+   system believed. */
+.proto-stop-readout { display: flex; flex-direction: column; justify-content: flex-end; }
+.proto-readout-label { font-size: 11px; opacity: 0.7; }
+.proto-readout-value {
+  font-weight: 600;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--text-color, #333);
+  white-space: nowrap;
+}
+.proto-pin-field input { width: 140px; letter-spacing: 4px; font-size: 18px; }
+.proto-pin-field .proto-optional { display: block; font-size: 11px; margin-top: 4px; }
+
+.proto-attrib { font-size: 0.6875rem; opacity: 0.7; display: block; margin-top: 4px; }
+
+tr.proto-row.is-planned td { background: rgba(107,143,181,0.10); }
+tr.proto-row.is-held td { background: rgba(201,150,46,0.12); }
+tr.proto-row.is-stopped td { opacity: 0.68; }
+tr.proto-row.just-changed td { animation: proto-flash 1.6s ease-out; }
+@keyframes proto-flash {
+  from { background: rgba(80,160,110,0.45); }
+  to { background: transparent; }
+}
+
+.proto-supply select { width: 100%; font-size: 0.75rem; }
+.proto-supply-value { font-size: 0.75rem; }
+/* The collapse header count. Small, bold and offset, as the sidebar group
+   counts are, so it reads as a quantity rather than part of the label. */
+.proto-count { font-size: 0.6875rem; font-weight: 700; vertical-align: 25%; margin-left: 4px; }
+.proto-count::before { content: '('; }
+.proto-count::after  { content: ')'; }
+.collapse-data-header-icon { padding-left: 8px; }
+
+.proto-supply-value.is-unset { opacity: 0.45; }
+/* Nobody has set this; the row is showing the default for its duration. Muted
+   rather than annotated, because a "(default)" suffix on most rows is noise. */
+.proto-supply-value.is-derived { opacity: 0.6; font-style: italic; }
+
+/* All four medication tables share one column grid so the eye, systemic and
+   stopped lists read as one record rather than three tables that happen to be
+   stacked. Fixed layout is what guarantees it: with auto layout the widest
+   action row in each table sets its own column widths, which is exactly why
+   they drifted apart. */
+table.proto-meds { table-layout: fixed; width: 100%; }
+table.proto-meds col.proto-c-drug    { width: 19%; }
+table.proto-meds col.proto-c-dir     { width: 25%; }
+table.proto-meds col.proto-c-dates   { width: 12%; }
+table.proto-meds col.proto-c-supply  { width: 12%; }
+table.proto-meds col.proto-c-order   { width: 5%; }
+table.proto-meds col.proto-c-actions { width: 27%; }
+table.proto-meds td, table.proto-meds th { overflow-wrap: break-word; }
+/* The systemic tables carry one extra button, so their actions wrap to a second
+   line rather than widening the column and breaking the shared grid. */
+table.proto-meds td.proto-actions { display: table-cell; text-align: right; }
+table.proto-meds td.proto-actions button { margin: 0 0 2px 2px; }
+
+/* The real banner sizes its two rows against a taller header than this mock has,
+   so the name and the ID line collide. Let the rows take their content height. */
+#oe-patient-details { grid-template-rows: auto auto !important; align-content: center; row-gap: 2px; }
+#oe-patient-details .patient-name { grid-row: 1 !important; line-height: 1.15; }
+#oe-patient-details .patient-aware { grid-row: 1 / span 2; }
+.proto-supply-note { font-size: 0.6875rem; opacity: 0.75; display: block; margin-top: 4px; }
+
+/* The order toggle. A selection for the next order, never a stored field. */
+.proto-rxsel, .proto-rxsel-head { width: 62px; text-align: center; }
+.proto-toggle { display: inline-block; cursor: pointer; }
+.proto-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+.proto-toggle-track {
+  display: block; width: 38px; height: 20px; border-radius: 10px;
+  background: #c4c9cf; position: relative; transition: background 0.12s;
+}
+.proto-toggle-knob {
+  position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+  border-radius: 50%; background: #fff; transition: left 0.12s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+.proto-toggle input:checked + .proto-toggle-track { background: var(--button-green-bg, #3a8340); }
+.proto-toggle input:checked + .proto-toggle-track .proto-toggle-knob { left: 20px; }
+.proto-toggle input:focus-visible + .proto-toggle-track { outline: 2px solid #1b6ec2; outline-offset: 2px; }
+
+.proto-form-buttons { display: flex; gap: 8px; }
+.proto-set-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 4px;
+  border-bottom: 1px solid #e3e5e8;
+  cursor: pointer;
+}
+.proto-set-item input { margin-top: 2px; flex: 0 0 auto; }
+.proto-set-item.is-skipped { opacity: 0.65; }
+
+.proto-actions { white-space: nowrap; text-align: right; }
+.proto-actions button {
+  font-size: 0.6875rem;
+  padding: 3px 7px;
+  margin: 0 0 3px 3px;
+  cursor: pointer;
+}
+
+/* ---------- sticky prescribe bar ---------- */
+
+.proto-sticky-bar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  background: rgba(30,30,32,0.94);
+  border-top: 2px solid #4a7fae;
+  padding: 10px 24px;
+  z-index: 60;
+}
+html.theme-light .proto-sticky-bar { background: rgba(240,240,242,0.97); }
+.proto-sticky-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+#proto-prescribe-summary { font-size: 0.8125rem; }
+
+/* ---------- popups ---------- */
+
+.oe-popup-wrap[hidden] { display: none; }
+.oe-popup-wrap { display: flex; }
+.proto-popup-wide { width: min(900px, 92vw); }
+
+.proto-field { display: block; margin: 10px 0; font-size: 0.8125rem; }
+.proto-field input, .proto-field select, .proto-field textarea { display: block; margin-top: 4px; }
+.proto-field-row { display: flex; gap: 14px; flex-wrap: wrap; }
+.proto-field-row .proto-field { flex: 1 1 140px; }
+.proto-strong { font-weight: 600; margin-bottom: 8px; }
+.proto-inline-note { margin: 10px 0; }
+
+.proto-results { margin-top: 10px; max-height: 320px; overflow-y: auto; }
+.proto-result {
+  padding: 8px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(128,128,128,0.25);
+  font-size: 0.8125rem;
+}
+.proto-result:hover { background: rgba(80,140,200,0.18); }
+.proto-result .proto-drug-sub { opacity: 0.7; }
+.proto-result.is-active-already { opacity: 0.6; }
+
+/* ---------- artefacts ---------- */
+
+.proto-artefact { margin-bottom: 18px; }
+.proto-artefact .element-header { display: flex; align-items: center; justify-content: space-between; }
+.proto-artefact-meta { font-size: 0.75rem; opacity: 0.8; line-height: 1.6; }
+.proto-status {
+  display: inline-block; font-size: 0.6875rem; padding: 3px 8px; border-radius: 9px; margin-left: 8px;
+}
+.proto-status.pending { background: #8a8a8a; color: #fff; }
+.proto-status.signed { background: #2f6f4f; color: #fff; }
+.proto-status.issued { background: #2c5d8f; color: #fff; }
+.proto-status.complete { background: #4a3f7a; color: #fff; }
+.proto-status.cancelled { background: #7a3f3f; color: #fff; }
+
+.proto-state-note { font-size: 0.75rem; opacity: 0.85; margin: 6px 0 10px; }
+.proto-artefact.is-cancelled .proto-sign-table { opacity: 0.55; text-decoration: line-through; }
+
+.proto-frozen-note { font-size: 0.75rem; margin-top: 8px; }
+.proto-diverged { color: #b8712c; }
+.proto-projection { color: #4a7a99; }
+.proto-query { color: #a03c3c; }
+tr.proto-diverged-row td { background: rgba(184,113,44,0.12); }
+
+/* Pharmacy signatory chips, as the worklist renders them */
+.proto-worklist-line {
+  margin-top: 10px; padding-top: 8px; font-size: 0.75rem;
+  border-top: 1px solid rgba(128,128,128,0.25);
+}
+.proto-worklist-label { opacity: 0.7; margin-right: 6px; }
+.proto-sig {
+  display: inline-block; font-size: 0.6875rem; padding: 2px 6px; border-radius: 2px; margin-right: 4px;
+}
+.proto-sig.signed { background: #2f6f4f; color: #fff; }
+.proto-sig.unsigned { background: rgba(128,128,128,0.3); color: inherit; opacity: 0.8; }
+.proto-worklist-state { display: block; margin-top: 6px; opacity: 0.75; }
+
+.proto-notes { margin-top: 10px; font-size: 0.75rem; }
+.proto-notes .proto-field { display: block; width: 100%; }
+.proto-notes textarea { display: block; width: 100%; box-sizing: border-box; font-size: 0.75rem; }
+.proto-notes-frozen { padding: 6px 8px; background: rgba(128,128,128,0.12); border-radius: 2px; }
+
+table.proto-model-table td, table.proto-model-table th { padding: 8px 10px; vertical-align: top; font-size: 0.8125rem; }
+table.proto-model-table th { text-align: left; font-weight: 600; }
+table.proto-model-table tr + tr td { border-top: 1px solid rgba(128,128,128,0.25); }
+
+table.proto-history-table td, table.proto-history-table th,
+table.proto-sign-table td, table.proto-sign-table th,
+table.proto-taper-table td, table.proto-taper-table th { padding: 6px 8px; font-size: 0.8125rem; text-align: left; }
+table.proto-history-table tr + tr td { border-top: 1px solid rgba(128,128,128,0.25); }
+
+.proto-empty { font-size: 0.8125rem; opacity: 0.7; padding: 10px 0; }
+
+/* Dispense location, shown only when something is actually being supplied */
+.proto-loc { margin-top: 3px; display: block; }
+
+/* Set and PGD pickers */
+.proto-set-list .proto-result { padding: 7px 9px; }
+
+.oe-full-header .buttons-right { display: flex; flex-wrap: wrap; justify-content: flex-end; }
+
+/* Conflict list inside the warning popup */
+.proto-dup-list { margin-top: 5px; }
+.proto-dup-list div { margin-top: 2px; }

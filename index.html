@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html class="js formattribute theme-light" lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Meds 2.0 prototype - OpenEyes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="vendor/oe/css/style_openeyes.css">
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body class="open-eyes oe-grid sem">
+
+<div class="openeyes-brand" id="js-open-eyes-brand">
+  <div class="oe-logo" id="js-openeyes-btn">
+    <svg viewBox="0 0 300.06 55.35" xmlns="http://www.w3.org/2000/svg" class="oe-openeyes">
+      <use xlink:href="vendor/oe/svg/oe-logo-r.svg#openeyes-r"></use>
+    </svg>
+  </div>
+</div>
+
+<header class="oe-header">
+  <div id="oe-patient-details" class="js-oe-patient oe-patient">
+    <div class="patient-aware">
+      <div class="klax-aware"></div>
+      <div class="ais-aware"></div>
+    </div>
+    <div class="patient-name">
+      <a href="#"><span class="patient-surname">Sample</span>, <span class="patient-firstname">Margaret (Mrs)</span></a>
+    </div>
+    <div class="meta-aware">
+      <div class="patient-details">
+        <div class="hospital-number"><span>ID</span> <span class="number">1754632</span></div>
+        <div class="nhs-number"><span>NHS</span> <span class="number">634 914 0583</span></div>
+        <div class="patient-gender"><em>Sex</em> Female</div>
+        <div class="patient-age"><em>Age</em> 71</div>
+      </div>
+      <div class="aware-alerts">
+        <div class="allergy-aware" id="proto-allergy-pill" title="Allergies recorded">
+          <span class="proto-allergy-text">Allergy: Chloramphenicol</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="oe-user">
+    <ul class="oe-user-profile-context">
+      <li id="proto-user-name">Mr A Prescriber</li>
+      <li id="user-profile-site-institution">Queen Alexandra Hospital</li>
+      <li>Oculoplastics</li>
+    </ul>
+  </div>
+</header>
+
+<nav class="event-header">
+  <i class="oe-i-e large i-CiExamination"></i>
+  <a href="#" class="button header-tab selected proto-tab" data-view="record">Medication record</a>
+  <a href="#" class="button header-tab proto-tab" data-view="artefacts">Prescriptions</a>
+  <a href="#" class="button header-tab proto-tab" data-view="model">How this maps to the model</a>
+  <div class="buttons-right">
+    <label class="proto-role-switch">
+      Acting as
+      <select id="proto-role">
+        <option value="prescriber">Prescriber</option>
+        <option value="nurse">Nurse</option>
+        <option value="pharmacist">Pharmacist</option>
+      </select>
+    </label>
+    <label class="proto-role-switch">
+      Institution
+      <select id="proto-institution">
+        <option value="qah">QAH</option>
+        <option value="gosport">Gosport</option>
+      </select>
+    </label>
+    <label class="proto-role-switch">
+      Next appt
+      <select id="proto-appt">
+        <option value="2026-10-10">10 Oct 2026</option>
+        <option value="">Not booked</option>
+      </select>
+    </label>
+  </div>
+</nav>
+
+<main id="event-content" class="main-event edit">
+
+  <div class="proto-guide alert-box">
+    <strong>Meds 2.0 prototype.</strong> Illustrative only, no database behind it. <strong>What to try:</strong>
+    <span id="proto-guide-text"></span>
+  </div>
+
+  <!-- ============================= MEDICATION RECORD ============================= -->
+  <div class="proto-view" id="view-record">
+
+    <h2 class="event-title">Medications</h2>
+    <div class="proto-subtitle">Patient-level record, continuously editable, not owned by any one event</div>
+
+    <div class="proto-commit-bar" id="proto-commit-bar">
+      <span id="proto-commit-text"></span>
+      <span class="proto-commit-actions">
+        <button class="button" id="proto-commit-discard" type="button">Discard</button>
+        <button class="button green" id="proto-commit-save" type="button">Save examination</button>
+      </span>
+    </div>
+
+    <div id="proto-alerts"></div>
+    <div id="proto-reconcile"></div>
+
+    <section class="element edit">
+      <header class="element-header">
+        <h3 class="element-title">Eye medications</h3>
+      </header>
+      <div class="element-data full-width">
+        <div class="data-group">
+          <table class="medications entries proto-meds" data-group="eye">
+            <colgroup>
+              <col class="proto-c-drug"><col class="proto-c-dir"><col class="proto-c-dates">
+              <col class="proto-c-supply"><col class="proto-c-order"><col class="proto-c-actions">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Drug</th>
+                <th>Dose / frequency / route / side</th>
+                <th>Dates</th>
+                <th>Responsibility<br>to supply</th>
+                <th class="proto-rxsel-head">Order</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-eye"></tbody>
+          </table>
+        </div>
+        <div class="flex-layout flex-right">
+          <div class="add-data-actions flex-item-bottom">
+            <button class="button hint proto-set-add" id="proto-btn-pgd" type="button" hidden>Add PGD set</button>
+            <button class="button hint proto-set-add" id="proto-btn-set" type="button">Add standard set</button>
+            <button class="button hint green proto-add" data-group="eye" type="button">Add eye medication</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="element edit">
+      <header class="element-header">
+        <h3 class="element-title">Systemic medications relevant to eye care</h3>
+      </header>
+      <div class="element-data full-width">
+        <div class="data-group">
+          <table class="medications entries proto-meds" data-group="systemic-ophth">
+            <colgroup>
+              <col class="proto-c-drug"><col class="proto-c-dir"><col class="proto-c-dates">
+              <col class="proto-c-supply"><col class="proto-c-order"><col class="proto-c-actions">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Drug</th>
+                <th>Dose / frequency / route</th>
+                <th>Dates</th>
+                <th>Responsibility<br>to supply</th>
+                <th class="proto-rxsel-head">Order</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-systemic-ophth"></tbody>
+          </table>
+        </div>
+        <div class="flex-layout flex-right">
+          <div class="add-data-actions flex-item-bottom">
+            <button class="button hint green proto-add" data-group="systemic-ophth" type="button">Add systemic medication</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Collapsed by default. These are the drugs we neither prescribe nor act on,
+         and at ten or fifteen rows they push everything that matters below the
+         fold. The real OpenEyes collapse-data pattern, so the control behaves the
+         way it does everywhere else in the application. -->
+    <section class="element edit">
+      <header class="element-header">
+        <h3 class="element-title">Other systemic medications</h3>
+      </header>
+      <div class="element-data full-width js-collapse-data collapse-data">
+        <div class="js-collapse-data-header collapse-data-header-icon expand" id="proto-collapse-other"
+             role="button" tabindex="0" aria-expanded="false">Not relevant to eye care <span class="proto-count" id="proto-count-other"></span></div>
+        <div class="js-collapse-data-content collapse-data-content" style="display: none;">
+        <div class="data-group">
+          <table class="medications entries proto-meds" data-group="systemic-other">
+            <colgroup>
+              <col class="proto-c-drug"><col class="proto-c-dir"><col class="proto-c-dates">
+              <col class="proto-c-supply"><col class="proto-c-order"><col class="proto-c-actions">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Drug</th>
+                <th>Dose / frequency / route</th>
+                <th>Dates</th>
+                <th>Responsibility<br>to supply</th>
+                <th class="proto-rxsel-head">Order</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-systemic-other"></tbody>
+          </table>
+        </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="element edit" id="proto-stopped-section">
+      <header class="element-header">
+        <h3 class="element-title">Stopped</h3>
+      </header>
+      <div class="element-data full-width js-collapse-data collapse-data">
+        <div class="js-collapse-data-header collapse-data-header-icon expand" id="proto-collapse-stopped"
+             role="button" tabindex="0" aria-expanded="false">Previously taken <span class="proto-count" id="proto-count-stopped"></span></div>
+        <div class="js-collapse-data-content collapse-data-content" style="display: none;">
+        <div class="data-group">
+          <table class="medications entries proto-meds">
+            <colgroup>
+              <col class="proto-c-drug"><col class="proto-c-dir"><col class="proto-c-dates">
+              <col class="proto-c-supply"><col class="proto-c-order"><col class="proto-c-actions">
+            </colgroup>
+            <thead>
+              <tr><th>Drug</th><th>Last recorded as</th><th>Dates</th><th colspan="2">Stop reason</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="tbody-stopped"></tbody>
+          </table>
+        </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="proto-sticky-bar" id="proto-prescribe-bar">
+      <div class="proto-sticky-inner">
+        <span id="proto-prescribe-summary">Nothing selected</span>
+        <span class="proto-form-buttons" id="proto-form-buttons"></span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============================= ARTEFACTS ============================= -->
+  <div class="proto-view" id="view-artefacts" hidden>
+    <h2 class="event-title">Prescriptions</h2>
+    <div class="proto-subtitle">Immutable supply orders derived from the medication record. One prescriber per prescription.</div>
+    <div id="proto-artefact-list"></div>
+  </div>
+
+  <!-- ============================= MODEL MAP ============================= -->
+  <div class="proto-view" id="view-model" hidden>
+    <h2 class="event-title">How the prototype maps to the model</h2>
+    <section class="element">
+      <header class="element-header"><h3 class="element-title">Three layers</h3></header>
+      <div class="element-data full-width">
+        <div class="data-group">
+          <table class="standard proto-model-table">
+            <thead><tr><th>Layer</th><th>What it is</th><th>Where you see it in this prototype</th><th>Proposed storage</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>1. Medication state</strong></td>
+                <td>The clinical truth: what this patient is on, was on, and is planned to start. Patient level, continuously editable.</td>
+                <td>The Medication record tab. Rows persist across visits and are never owned by an event.</td>
+                <td><code>medications_cumulative_patient_state</code>, cached one row per record event, built from <code>medications_record_event</code> + <code>_entry</code></td>
+              </tr>
+              <tr>
+                <td><strong>2. Supply responsibility</strong></td>
+                <td>Who we are relying on to get this drug to the patient from now on: Hospital, GP, Patient, or blank. An assignment we can make, not a supply we can observe.</td>
+                <td>The Responsibility to supply column. It reads as a label, is changed in the Change dialog, and moves on its own when an order transfers responsibility.</td>
+                <td><code>supply_responsibility</code> on the entry. The dispense condition is <em>not</em> here: it belongs to the order</td>
+              </tr>
+              <tr>
+                <td><strong>3. Generated artefact</strong></td>
+                <td>The prescription itself: a single dispensable order, signed by one prescriber, immutable once <em>issued</em> (printed, or pharmacy has begun signing).</td>
+                <td>The Prescriptions tab. A pending order projects the record; issuing freezes it. Reprinting or reissuing never edits the record.</td>
+                <td><code>medications_supply_artefact</code> with lifecycle state, a snapshot frozen at issue, and one prescriber signature. Items in <code>medications_supply_artefact_item</code>, carrying the dispense condition and location</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="element">
+      <header class="element-header"><h3 class="element-title">Behaviours this prototype is demonstrating</h3></header>
+      <div class="element-data full-width">
+        <div class="data-group">
+          <table class="standard proto-model-table">
+            <thead><tr><th>Behaviour</th><th>Problem it addresses</th><th>Try it</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>Uniqueness by construction</td>
+                <td>Duplicate medication lines from repeat events and same-day prescriptions</td>
+                <td>Add a drug the patient is already on. The record refuses to create a second line and offers to edit the existing one.</td>
+              </tr>
+              <tr>
+                <td>Prescription decoupled from record</td>
+                <td>Editing a prescription silently changing the clinical record, and vice versa</td>
+                <td>Create a prescription, change a dose and watch the pending order follow. Print it, then change the dose again: the issued order keeps its values and reports the divergence.</td>
+              </tr>
+              <tr>
+                <td>Immutability at issue, not at signature</td>
+                <td>Printed and dispensed prescriptions being edited after the fact, while a forgotten drug forces a duplicate</td>
+                <td>Amend freely before issue; signing voids on amendment. After issue there is no edit and no delete, only cancel and reissue, which stay linked.</td>
+              </tr>
+              <tr>
+                <td>One prescriber per artefact</td>
+                <td>Ambiguity over who is legally responsible for a prescription</td>
+                <td>Switch role to Nurse. The Hospital prescription and FP10 buttons are gone; only Supply under PGD remains, and only for drugs her protocols cover.</td>
+              </tr>
+              <tr>
+                <td>Future-dated medications</td>
+                <td>No way to record a planned start without it appearing as current</td>
+                <td>The planned row shows as Planned and is excluded from the current list until its start date.</td>
+              </tr>
+              <tr>
+                <td>Duration, dates and taper on one dialog</td>
+                <td>Today duration and taper are hidden until Prescribe is switched on, so "give this for two weeks" takes two steps and a reducing course takes three</td>
+                <td>Open Change on any drug. Duration, the stop date and the reducing course are next to dose and frequency. Nothing is prescribed.</td>
+              </tr>
+              <tr>
+                <td>Changes commit with the event</td>
+                <td>If the list is shared, a half-finished edit must not appear on anyone else's screen, and cancelling out must still mean undo</td>
+                <td>Change a dose. The bar at the top counts unsaved changes and the row is marked. Save, and the marker becomes "changed at this visit". Discard, and the record reverts.</td>
+              </tr>
+              <tr>
+                <td>Ordering commits the record first</td>
+                <td>Printing cannot be undone by cancelling a form, so an order must never be generated from changes that exist only in a browser</td>
+                <td>Change a dose without saving, then press Hospital prescription. The record is committed as part of creating the order.</td>
+              </tr>
+              <tr>
+                <td>Supply responsibility moves at issue</td>
+                <td>"Hospital to supply and GP to continue" stays on the row forever, when only the second half is still true</td>
+                <td>Order acetazolamide on "Hospital to supply and GP to continue" and print it. The row stops saying the hospital supplies it and says the GP does.</td>
+              </tr>
+              <tr>
+                <td>PIN signs without a button</td>
+                <td>An extra click on every prescription, and an interaction that does not match every other PIN field in OpenEyes</td>
+                <td>Press Hospital prescription. The PIN field has focus; type any six digits and the order exists.</td>
+              </tr>
+              <tr>
+                <td>Eye relevance as a per-patient override</td>
+                <td>[cod] misses systemic drugs that matter to the eye, and one drug-set default cannot be right for every patient</td>
+                <td>Use "Eye relevant" on hydroxychloroquine under Other systemic. It moves group and is marked as an override of the drug-set default.</td>
+              </tr>
+              <tr>
+                <td>Dispense conditions are the existing lookups, on the order</td>
+                <td>Supply is tied to the act of prescribing, and behaviour is inferred from condition names rather than declared</td>
+                <td>Switch Institution to Gosport. FP10 disappears, because that mapping is not there. Responsibility to supply is unaffected, because that is about this patient rather than a local setting.</td>
+              </tr>
+              <tr>
+                <td>PGD supply is per user and per drug</td>
+                <td>A PGD item lands on someone else's prescription under their signature (OE-18130)</td>
+                <td>Switch role to Nurse. Add PGD set appears, and Supply under PGD is offered only on the drugs her protocols cover.</td>
+              </tr>
+              <tr>
+                <td>Quick add is preserved, but per drug</td>
+                <td>A set add is a block of rows owned by one event, and can add a duplicate</td>
+                <td>Add standard set, then Cataract post-op. The allergy and the duplicate are named before anything is added.</td>
+              </tr>
+              <tr>
+                <td>Planned stop or hold, with confirmation</td>
+                <td>No way to record an instruction that has not happened yet, or whether it was followed</td>
+                <td>Press Stop and choose "days before next appointment". The drug stays active until someone answers "did this happen?".</td>
+              </tr>
+              <tr>
+                <td>Reprint versus reissue</td>
+                <td>Reprinting a copy that is already in circulation lets one order be dispensed twice</td>
+                <td>Print an already-printed prescription. The advisory asks whether the earlier copy still exists rather than guessing.</td>
+              </tr>
+              <tr>
+                <td>Pharmacy worklist and query</td>
+                <td>Outstanding work is inferred by counting signatures, and pharmacy can only decline to sign</td>
+                <td>Switch role to Pharmacist. Sign the dispensing roles, or raise a query that blocks completion.</td>
+              </tr>
+              <tr>
+                <td>Order-level note</td>
+                <td>No way to tell pharmacy why an order was reissued</td>
+                <td>Reissue a prescription. The successor carries a note pre-filled from the cancellation reason.</td>
+              </tr>
+              <tr>
+                <td>Drug-level attribution and history</td>
+                <td>Element-level audit only; cannot see who changed what</td>
+                <td>Open History on any row to see the entry chain with actor and timestamp.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+</main>
+
+<!-- ============================= POPUPS ============================= -->
+
+<div class="oe-popup-wrap" id="popup-add" hidden>
+  <div class="oe-popup">
+    <div class="title">Add medication</div>
+    <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
+    <div class="oe-popup-content">
+      <input type="text" id="proto-search" class="cols-full" placeholder="Search medications (try 'lat', 'dex', 'pred')" autocomplete="off">
+      <div id="proto-search-results" class="proto-results"></div>
+    </div>
+  </div>
+</div>
+
+<div class="oe-popup-wrap" id="popup-edit" hidden>
+  <div class="oe-popup">
+    <div class="title">Change medication</div>
+    <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
+    <div class="oe-popup-content">
+      <p id="proto-edit-drug" class="proto-strong"></p>
+      <div class="proto-field-row">
+        <label class="proto-field">Dose <input type="text" id="proto-edit-dose"></label>
+        <label class="proto-field">Unit <input type="text" id="proto-edit-unit"></label>
+        <label class="proto-field">Frequency
+          <select id="proto-edit-freq">
+            <option>Once daily</option><option>Twice daily</option><option>Three times daily</option>
+            <option>Four times daily</option><option>At night</option><option>Every 2 hours</option><option>As required</option>
+          </select>
+        </label>
+      </div>
+      <div class="proto-field-row">
+        <label class="proto-field">Route
+          <select id="proto-edit-route">
+            <option>Eye</option><option>Oral</option><option>Intravitreal</option><option>Topical</option><option>Subconjunctival</option>
+          </select>
+        </label>
+        <label class="proto-field">Side
+          <select id="proto-edit-lat"><option>Right</option><option>Left</option><option>Both</option><option value="">Not applicable</option></select>
+        </label>
+        <label class="proto-field">Start date <input type="date" id="proto-edit-start"></label>
+        <label class="proto-field">Duration
+          <select id="proto-edit-duration"></select>
+        </label>
+        <label class="proto-field" id="proto-edit-anchor-wrap" hidden>Days before
+          <input type="number" id="proto-edit-anchordays" value="7" min="0" max="90">
+        </label>
+        <label class="proto-field" id="proto-edit-end-wrap">Stop date
+          <input type="date" id="proto-edit-end">
+          <span class="proto-optional" id="proto-edit-anchor-note"></span>
+        </label>
+      </div>
+      <div class="proto-taper-block" id="proto-edit-taper-block">
+        <div class="proto-indication-label">Reducing course <span class="proto-optional">optional, each step follows the one above</span></div>
+        <table class="standard proto-taper-table">
+          <thead><tr><th>From</th><th>Dose</th><th>Frequency</th><th>Duration</th><th></th></tr></thead>
+          <tbody id="proto-taper-body"></tbody>
+        </table>
+        <div class="flex-layout flex-right">
+          <button class="button hint green" id="proto-taper-add" type="button">Add step</button>
+        </div>
+        <div class="proto-course-end" id="proto-edit-course-end"></div>
+      </div>
+      <div class="proto-field-row">
+        <label class="proto-field proto-field-wide">Responsibility to supply <span class="proto-optional">who we are relying on from now on</span>
+          <select id="proto-edit-supply"></select>
+        </label>
+      </div>
+      <div class="proto-indication">
+        <div class="proto-indication-label">Indication <span class="proto-optional">optional, from this patient's recorded diagnoses</span></div>
+        <div id="proto-edit-indication" class="proto-chips"></div>
+      </div>
+      <div class="alert-box proto-inline-note" id="proto-edit-rx-note" hidden></div>
+      <div class="popup-actions flex-right">
+        <button class="button green" id="proto-edit-save" type="button">Save change</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="oe-popup-wrap" id="popup-set" hidden>
+  <div class="oe-popup">
+    <div class="title" id="proto-set-title">Add standard set</div>
+    <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
+    <div class="oe-popup-content">
+      <div class="alert-box proto-inline-note" id="proto-set-note"></div>
+      <div id="proto-set-list" class="proto-set-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="oe-popup-wrap" id="popup-advise" hidden>
+  <div class="oe-popup">
+    <div class="title" id="proto-advise-title">Stop medication</div>
+    <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
+    <div class="oe-popup-content">
+      <p id="proto-advise-drug" class="proto-strong"></p>
+      <div class="proto-field-row">
+        <label class="proto-field">Action
+          <select id="proto-advise-action">
+            <option value="hold">Hold, then restart</option>
+            <option value="stop">Stop</option>
+          </select>
+        </label>
+        <label class="proto-field">When
+          <select id="proto-advise-anchor">
+            <option value="now">Now</option>
+            <option value="before-appt">Days before next appointment</option>
+            <option value="at-appt">At next appointment</option>
+            <option value="date">On a fixed date</option>
+          </select>
+        </label>
+        <label class="proto-field" id="proto-advise-days-wrap">Days before
+          <input type="number" id="proto-advise-days" value="7" min="1" max="90">
+        </label>
+        <label class="proto-field" id="proto-advise-date-wrap" hidden>Date
+          <input type="date" id="proto-advise-date">
+        </label>
+      </div>
+      <label class="proto-field proto-field-wide" id="proto-advise-reason-wrap">Reason
+        <input type="text" id="proto-advise-reason" placeholder="e.g. not tolerated">
+      </label>
+      <label class="proto-field proto-field-wide" id="proto-advise-text-wrap">What the patient is told
+        <textarea id="proto-advise-text" rows="2"></textarea>
+      </label>
+      <div class="alert-box patient" id="proto-advise-preview"></div>
+      <div class="popup-actions flex-right">
+        <button class="button green" id="proto-advise-save" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="oe-popup-wrap" id="popup-confirm" hidden>
+  <div class="oe-popup">
+    <div class="title">Did this happen?</div>
+    <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
+    <div class="oe-popup-content">
+      <p id="proto-confirm-drug" class="proto-strong"></p>
+      <div class="alert-box proto-inline-note" id="proto-confirm-advice"></div>
+      <p>Until this is answered the record shows the medication as still being taken, because that is all the system actually knows.</p>
+      <label class="proto-field proto-field-wide">Actual date, if known
+        <input type="date" id="proto-confirm-date">
+      </label>
+      <label class="proto-field proto-field-wide">Note
+        <input type="text" id="proto-confirm-note" placeholder="e.g. patient stopped 5 days before, not 7">
+      </label>
+      <div class="popup-actions flex-right">
+        <button class="button" id="proto-confirm-na" type="button">No longer applicable</button>
+        <button class="button" id="proto-confirm-no" type="button">Not done</button>
+        <button class="button green" id="proto-confirm-yes" type="button">Confirm done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="oe-popup-wrap" id="popup-history" hidden>
+  <div class="oe-popup proto-popup-wide">
+    <div class="title">Change history</div>
+    <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
+    <div class="oe-popup-content">
+      <p id="proto-history-drug" class="proto-strong"></p>
+      <table class="standard proto-history-table">
+        <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Recorded as</th><th>Context</th></tr></thead>
+        <tbody id="proto-history-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="oe-popup-wrap" id="popup-duplicate" hidden>
+  <div class="oe-popup">
+    <div class="title"><i class="oe-i triangle large selected pro-theme"></i> <span id="proto-dup-title">Already on the record</span></div>
+    <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
+    <div class="oe-popup-content">
+      <div class="alert-box patient">
+        <strong id="proto-dup-drug"></strong>
+        <div id="proto-dup-list" class="proto-dup-list"></div>
+      </div>
+      <p id="proto-dup-explain"></p>
+      <div class="popup-actions flex-right">
+        <button class="button" id="proto-dup-anyway" type="button" hidden>Add anyway</button>
+        <button class="button green" id="proto-dup-edit" type="button">Change the existing entry</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="oe-popup-wrap" id="popup-prescribe" hidden>
+  <div class="oe-popup">
+    <div class="title" id="proto-pr-title">Hospital prescription</div>
+    <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
+    <div class="oe-popup-content">
+      <div class="alert-box" id="proto-pr-intro"></div>
+      <table class="standard proto-sign-table">
+        <thead><tr><th>Drug</th><th>Directions</th><th id="proto-pr-loc-head">Dispense location</th></tr></thead>
+        <tbody id="proto-pr-body"></tbody>
+      </table>
+      <label class="proto-field proto-field-wide" id="proto-pr-cond-wrap">Dispensing instruction
+        <select id="proto-pr-cond"></select>
+      </label>
+      <label class="proto-field proto-field-wide">Note for pharmacy <span class="proto-optional">optional, printed on the order</span>
+        <input type="text" id="proto-pr-note" placeholder="e.g. owed items to follow">
+      </label>
+      <label class="proto-field proto-field-wide proto-pin-field">Enter PIN to sign and create the order
+        <input type="password" id="proto-pr-pin" inputmode="numeric" maxlength="6" autocomplete="off"
+               class="user-pin-entry" placeholder="6 digits">
+        <span class="proto-optional">Signs as soon as six digits are entered, as every other PIN field in OpenEyes does. Any six digits work here.</span>
+      </label>
+      <div class="popup-actions flex-right">
+        <button class="button" id="proto-pr-unsigned" type="button">Create without signing</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="oe-popup-wrap" id="popup-sign" hidden>
+  <div class="oe-popup">
+    <div class="title">Sign prescription</div>
+    <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
+    <div class="oe-popup-content">
+      <div class="alert-box">
+        This prescription will be signed by <strong id="proto-sign-user"></strong>. Signing does not issue it. It can still be amended, and any amendment voids this signature.
+      </div>
+      <table class="standard proto-sign-table">
+        <thead><tr><th>Drug</th><th>Directions</th><th>Supply</th></tr></thead>
+        <tbody id="proto-sign-body"></tbody>
+      </table>
+      <label class="proto-field proto-field-wide proto-pin-field">Enter PIN to sign the prescription
+        <input type="password" id="proto-sign-pin" inputmode="numeric" maxlength="6" autocomplete="off"
+               class="user-pin-entry" placeholder="6 digits">
+        <span class="proto-optional">Signs as soon as six digits are entered, as every other PIN field in OpenEyes does. Any six digits work here.</span>
+      </label>
+    </div>
+  </div>
+</div>
+
+<div class="oe-popup-wrap" id="popup-cancel" hidden>
+  <div class="oe-popup">
+    <div class="title" id="proto-cancel-title">Cancel prescription</div>
+    <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
+    <div class="oe-popup-content">
+      <div class="alert-box patient">
+        <strong id="proto-cancel-rx"></strong> has been issued, so it cannot be edited or deleted.
+      </div>
+      <p id="proto-cancel-note"></p>
+      <label class="proto-field">Reason
+        <select id="proto-cancel-reason">
+          <option>Print failed, no usable copy produced</option>
+          <option>Drug or dose incorrect</option>
+          <option>Medication no longer required</option>
+          <option>Superseded by a revised order</option>
+          <option>Prescribed in error</option>
+        </select>
+      </label>
+      <div class="popup-actions flex-right">
+        <button class="button green" id="proto-cancel-confirm" type="button">Cancel prescription</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="oe-popup-wrap" id="popup-reprint" hidden>
+  <div class="oe-popup">
+    <div class="title">This prescription has already been printed</div>
+    <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
+    <div class="oe-popup-content">
+      <div class="alert-box patient">
+        <strong id="proto-reprint-rx"></strong>. <span id="proto-reprint-count"></span>
+      </div>
+      <p>The system cannot tell whether the earlier copy still exists, so this is a judgement call.</p>
+      <p><strong>Reprint</strong> only if no usable copy left the printer, or the earlier copy has been destroyed. <strong>Cancel and reissue</strong> if a copy may have reached the patient, because two live copies of one order can both be dispensed.</p>
+      <div class="popup-actions flex-right">
+        <button class="button" id="proto-reprint-confirm" type="button">Reprint, earlier copy destroyed</button>
+        <button class="button green" id="proto-reprint-reissue" type="button">Cancel and reissue</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="oe-popup-wrap" id="popup-query" hidden>
+  <div class="oe-popup">
+    <div class="title">Raise a pharmacy query</div>
+    <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
+    <div class="oe-popup-content">
+      <div class="alert-box">
+        A query against <strong id="proto-query-rx"></strong> flags the prescriber and blocks completion until it is resolved. Today the only option is to decline to sign, which communicates nothing.
+      </div>
+      <label class="proto-field">Query
+        <textarea id="proto-query-text" rows="3" placeholder="e.g. Dose exceeds the usual maximum, please confirm."></textarea>
+      </label>
+      <div class="popup-actions flex-right">
+        <button class="button green" id="proto-query-confirm" type="button">Raise query</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="prototype.js"></script>
+</body>
+</html>
