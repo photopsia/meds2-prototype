@@ -243,7 +243,7 @@
   <!-- ============================= ARTEFACTS ============================= -->
   <div class="proto-view" id="view-artefacts" hidden>
     <h2 class="event-title">Prescriptions</h2>
-    <div class="proto-subtitle">Immutable supply orders derived from the medication record. One prescriber per prescription.</div>
+    <div class="proto-subtitle">Supply orders derived from the medication record, fixed at signature. One prescriber per prescription, one prescription per event.</div>
     <div id="proto-artefact-list"></div>
   </div>
 
@@ -271,9 +271,9 @@
               </tr>
               <tr>
                 <td><strong>3. Generated artefact</strong></td>
-                <td>The prescription itself: a single dispensable order, signed by one prescriber, immutable once <em>issued</em> (printed, or pharmacy has begun signing).</td>
-                <td>The Prescriptions tab. A pending order projects the record; issuing freezes it. Reprinting or reissuing never edits the record.</td>
-                <td><code>medications_supply_artefact</code> with lifecycle state, a snapshot frozen at issue, and one prescriber signature. Items in <code>medications_supply_artefact_item</code>, carrying the dispense condition and location</td>
+                <td>The prescription itself: a single dispensable order, signed by one prescriber, fixed at <em>signature</em> and released at <em>issue</em> (printed, or pharmacy has begun signing).</td>
+                <td>The Prescriptions tab. An unsigned draft projects the record; signing snapshots it. Reprinting or reissuing never edits the record.</td>
+                <td><code>medications_supply_artefact</code> with lifecycle state, <code>items_signed</code> written at signature, and one prescriber signature. Items in <code>medications_supply_artefact_item</code>, carrying the dispense condition and location</td>
               </tr>
             </tbody>
           </table>
@@ -296,12 +296,17 @@
               <tr>
                 <td>Prescription decoupled from record</td>
                 <td>Editing a prescription silently changing the clinical record, and vice versa</td>
-                <td>Create a prescription, change a dose and watch the pending order follow. Print it, then change the dose again: the issued order keeps its values and reports the divergence.</td>
+                <td>Save an order as a draft, change a dose and watch the draft follow. Sign it, then change the dose again: the order keeps what was signed and reports the divergence.</td>
               </tr>
               <tr>
-                <td>Immutability at issue, not at signature</td>
+                <td>Frozen at signature, released at issue</td>
                 <td>Printed and dispensed prescriptions being edited after the fact, while a forgotten drug forces a duplicate</td>
-                <td>Amend freely before issue; signing voids on amendment. After issue there is no edit and no delete, only cancel and reissue, which stay linked.</td>
+                <td>Amend a draft freely. Once signed, the order stops following the record, and amending means voiding the signature and signing again, which keeps the same order number. After issue there is no edit and no re-sign, only cancel and reissue, which stay linked.</td>
+              </tr>
+              <tr>
+                <td>Divergence is flagged, not applied</td>
+                <td>A pharmacist dispensing an order the prescriber has since changed their mind about, with no way to know</td>
+                <td>Sign an order, then change that drug on the record. The order is flagged on its header, in its worklist line and in the change dialog. It does not block dispensing; it gives pharmacy a reason to query.</td>
               </tr>
               <tr>
                 <td>One prescriber per artefact</td>

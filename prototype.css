@@ -292,11 +292,17 @@ table.proto-meds td.proto-actions button { margin: 0 0 2px 2px; }
 .proto-status {
   display: inline-block; font-size: 0.6875rem; padding: 3px 8px; border-radius: 9px; margin-left: 8px;
 }
-.proto-status.pending { background: #8a8a8a; color: #fff; }
+.proto-status.draft { background: #8a8a8a; color: #fff; }
 .proto-status.signed { background: #2f6f4f; color: #fff; }
 .proto-status.issued { background: #2c5d8f; color: #fff; }
 .proto-status.complete { background: #4a3f7a; color: #fff; }
 .proto-status.cancelled { background: #7a3f3f; color: #fff; }
+
+.proto-diverged-flag {
+  margin-left: 6px;
+  font-size: 0.85em;
+  vertical-align: middle;
+}
 
 .proto-state-note { font-size: 0.75rem; opacity: 0.85; margin: 6px 0 10px; }
 .proto-artefact.is-cancelled .proto-sign-table { opacity: 0.55; text-decoration: line-through; }

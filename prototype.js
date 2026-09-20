@@ -18,9 +18,9 @@
   var PHARMACY_ROLES = ['Screened by', 'Dispensed by', 'Checked by', 'Counselled by'];
 
   var ARTEFACT_STATES = {
-    pending:   { label: 'Pending',   note: 'Not issued. Directions are read live from the medication record and can still change.' },
-    signed:    { label: 'Signed',    note: 'Signed but not issued. Editing any of these medications voids the signature.' },
-    issued:    { label: 'Issued',    note: 'Released. Frozen as issued. It can be cancelled and reissued, but not edited.' },
+    draft:     { label: 'Draft',     note: 'Unsigned. Directions are read live from the medication record and can still change.' },
+    signed:    { label: 'Signed',    note: 'Signed. These directions were snapshotted at signature and no longer follow the record. Amend by voiding the signature and re-signing.' },
+    issued:    { label: 'Issued',    note: 'Released. It can be cancelled and reissued, but not edited or re-signed.' },
     complete:  { label: 'Complete',  note: 'Every signatory role has signed. Off the pharmacy worklist.' },
     cancelled: { label: 'Cancelled', note: 'Withdrawn. Stays visible to pharmacy rather than disappearing.' }
   };
@@ -354,6 +354,7 @@
       entryIds: [lat.id, cos.id],
       frozen: [ frozenItem(lat, 'fp10'), frozenItem(cos, 'fp10') ],
       signedAt: '2026-06-04 11:05', signedBy: 'Mr A Prescriber',
+      signatures: [{ by: 'Mr A Prescriber', at: '2026-06-04 11:05', voidedAt: null, voidedBy: null, reason: null }],
       issuedAt: '2026-06-04 11:08', issuedBy: 'Mr A Prescriber', issueTrigger: 'print',
       printedAt: '2026-06-04 11:08', printedBy: 'Mr A Prescriber', printCount: 1,
       /* An FP10 does not go through hospital pharmacy, so no dispensing roles apply. */
@@ -398,6 +399,9 @@
 
   function rx(o) {
     o.frozen = o.frozen || null;
+    o.signatures = o.signatures || [];
+    o.divergedAt = o.divergedAt || null;
+    o.divergedBy = o.divergedBy || null;
     o.formType = o.formType || 'hospital';
     o.locations = o.locations || {};
     o.notes = o.notes || '';
@@ -546,11 +550,13 @@
   function rxById(id) { return STATE.artefacts.filter(function (a) { return a.id === id; })[0]; }
   function isLive(a) { return a.status !== 'cancelled'; }
   function isIssued(a) { return a.status === 'issued' || a.status === 'complete'; }
-  function isOpen(a) { return a.status === 'pending' || a.status === 'signed'; }
+  function isOpen(a) { return a.status === 'draft' || a.status === 'signed'; }
+  function isDraft(a) { return a.status === 'draft'; }
 
-  /* The directions an artefact carries. Before issue it holds no copy of its own:
-     it is a projection of the current record, so editing the record edits it.
-     At issue the directions are snapshotted into `frozen` and stop tracking. */
+  /* The directions an artefact carries. While it is an unsigned draft it holds no
+     copy of its own: it is a projection of the current record, so editing the
+     record edits it. At signature the directions are snapshotted into `frozen`
+     and stop tracking, because a signature has to attest to specific content. */
   function artefactItems(a) {
     if (a.frozen) return a.frozen;
     return a.entryIds.map(function (id) {
@@ -562,18 +568,23 @@
     }).filter(Boolean);
   }
 
-  /* The artefact currently carrying this medication, cancelled ones excluded. */
+  /* The artefact currently carrying this medication, cancelled ones excluded.
+     A drug can sit on an old issued order and a new one at the same time, so the
+     most recent is the one a warning should talk about. */
   function liveArtefactFor(entry) {
-    return STATE.artefacts.filter(function (a) {
+    var matches = STATE.artefacts.filter(function (a) {
       return isLive(a) && a.entryIds.indexOf(entry.id) >= 0;
-    })[0];
+    });
+    return matches[matches.length - 1];
   }
 
   function sameAsSnapshot(e, s) {
     return e.dose === s.dose && e.unit === s.unit && e.freq === s.freq && e.route === s.route && e.lat === s.lat;
   }
 
-  /* Divergence is only meaningful once frozen. An unissued artefact cannot diverge. */
+  /* Divergence is only meaningful once a snapshot exists, which is from signature
+     onwards. An unsigned draft cannot diverge, because it has nothing of its own
+     to diverge from. */
   function divergedItems(a) {
     if (!a.frozen) return [];
     return a.frozen.filter(function (i) {
@@ -588,25 +599,64 @@
     return PHARMACY_ROLES.filter(function (r) { return !a.pharmacy[r]; });
   }
 
-  /* Editing a medication that sits on a signed but unissued artefact voids the
-     signature: the signature attested to specific directions. */
-  function voidSignatureFor(entry) {
-    var voided = [];
+  /* Editing a medication that sits on a signed artefact does NOT change the order.
+     The snapshot was taken at signature, so the order still says what was signed.
+     What changes is that the record has moved away from it, and three people need
+     telling: the prescriber, anyone scanning the timeline, and the pharmacist who
+     is next to act. The flag is stored rather than recomputed so the worklist can
+     filter on it. */
+  function flagDivergence(entry) {
+    var flagged = [];
     STATE.artefacts.forEach(function (a) {
-      if (a.status === 'signed' && a.entryIds.indexOf(entry.id) >= 0) {
-        a.status = 'pending';
-        a.signedAt = null;
-        a.signedBy = null;
-        voided.push(a.id);
+      if (!a.frozen || !isLive(a)) return;
+      if (a.entryIds.indexOf(entry.id) < 0) return;
+      if (!divergedItems(a).length) return;
+      if (!a.divergedAt) {
+        a.divergedAt = nowStamp();
+        a.divergedBy = user().name;
       }
+      flagged.push(a.id);
     });
-    return voided;
+    return flagged;
   }
 
-  /* Issue: the single transition that makes an order immutable. Triggered by
-     printing, or by the first pharmacy signature, whichever happens first. */
-  function issueArtefact(a, trigger) {
+  /* Signature: the transition that freezes the directions. The snapshot is taken
+     here, not at issue, because a signature attests to specific content and there
+     has to be a record of what that content was. */
+  function signArtefact(a) {
     a.frozen = artefactItems(a);
+    a.status = 'signed';
+    a.signedAt = nowStamp();
+    a.signedBy = user().name;
+    a.divergedAt = null;
+    a.divergedBy = null;
+    a.signatures = a.signatures || [];
+    a.signatures.push({ by: a.signedBy, at: a.signedAt, voidedAt: null, voidedBy: null, reason: null });
+  }
+
+  /* Amending a signed order. The order keeps its number: this is deliberately
+     cheaper than cancelling and far cheaper than a second prescription, which is
+     what makes freezing at signature affordable. The old signature is kept rather
+     than overwritten, so the sequence stays auditable. */
+  function voidSignature(a, reason) {
+    var last = (a.signatures || [])[a.signatures.length - 1];
+    if (last && !last.voidedAt) {
+      last.voidedAt = nowStamp();
+      last.voidedBy = user().name;
+      last.reason = reason || 'Amended before issue';
+    }
+    a.status = 'draft';
+    a.frozen = null;
+    a.signedAt = null;
+    a.signedBy = null;
+    a.divergedAt = null;
+    a.divergedBy = null;
+  }
+
+  /* Issue: release. Triggered by printing, or by the first pharmacy signature,
+     whichever happens first. The directions are already frozen by then. */
+  function issueArtefact(a, trigger) {
+    if (!a.frozen) a.frozen = artefactItems(a);
     a.status = 'issued';
     a.issuedAt = nowStamp();
     a.issuedBy = user().name;
@@ -1024,12 +1074,12 @@
     var conds = (ft.conditions || []).filter(function (c) { return inst().conditions.indexOf(c) >= 0; });
     if (!conds.length) conds = ft.conditions || [];
     var condCtl = frozen || !isOpen(a)
-      ? esc(COND_LABELS[a.condition] || a.condition)
+      ? esc(COND_LABELS[a.condition] || a.condition || '')
       : '<select data-act="rx-cond" data-rx="' + a.id + '">'
         + conds.map(function (c) {
             return '<option value="' + c + '"' + (c === a.condition ? ' selected' : '') + '>' + esc(COND_LABELS[c]) + '</option>';
           }).join('') + '</select>';
-    meta.push('Dispensing instruction: ' + condCtl);
+    if (condCtl) meta.push('Dispensing instruction: ' + condCtl);
 
     /* Pharmacy signatory chips, mirroring the four configurable roles the real
        worklist renders. Whether they apply at all is a property of the form,
@@ -1046,11 +1096,12 @@
 
     var actions = [];
     var u = user();
-    if (u.canPrescribe && a.status === 'pending') {
+    if (u.canPrescribe && isDraft(a)) {
       actions.push(btn('rx-sign', a.id, 'Sign', true));
     }
     if (u.canPrescribe && a.status === 'signed') {
       actions.push(btn('rx-print', a.id, 'Print and issue', true));
+      actions.push(btn('rx-void', a.id, 'Void signature and amend'));
     }
     if (u.canPrescribe && isIssued(a)) {
       actions.push(btn('rx-print', a.id, 'Reprint'));
@@ -1091,27 +1142,42 @@
         + '</div>';
     }
     if (!frozen) {
-      notes += '<div class="proto-frozen-note proto-projection">Not issued. These directions are read live from the medication record, '
-        + 'so a change there changes this prescription. Nothing is frozen until it is printed or pharmacy starts signing.</div>';
+      notes += '<div class="proto-frozen-note proto-projection">Unsigned draft. It holds no directions of its own: '
+        + 'these are read from the medication record, so a change there changes this order. '
+        + 'The directions are snapshotted the moment somebody signs.</div>';
     } else if (diverged.length) {
-      notes += '<div class="proto-frozen-note proto-diverged">The medication record has since changed for '
-        + diverged.map(function (i) { return esc(i.drug); }).join(', ')
-        + '. This prescription still shows what was issued, and cannot be edited. '
-        + 'Cancel and reissue if the patient needs supply at the current directions.</div>';
+      notes += '<div class="proto-frozen-note proto-diverged">'
+        + '<strong>The medication record has changed since this was signed</strong>'
+        + (a.divergedAt ? ', ' + fmtWhen(a.divergedAt) + ' by ' + esc(a.divergedBy) : '') + '.<br>'
+        + diverged.map(function (i) {
+            var e = findById(i.entryId);
+            var s = i.snapshot;
+            return esc(i.drug) + ': signed as <strong>' + esc([s.dose + (s.unit === 'drop' ? ' drop' + (s.dose === '1' ? '' : 's') : s.unit), s.freq].join(', '))
+              + '</strong>, record now says <strong>' + esc(directions(e)) + '</strong>';
+          }).join('<br>')
+        + '<br>' + (isIssued(a)
+            ? 'This order has been issued, so it cannot be changed. Cancel and reissue if the patient needs supply at the current directions.'
+            : 'This order still says what was signed. Void the signature and sign again to make it match, cancel it, or leave it if the signed directions are still what should be dispensed.')
+        + '</div>';
     } else if (a.status !== 'cancelled') {
-      notes += '<div class="proto-frozen-note">Frozen as issued, and currently matches the medication record.</div>';
+      notes += '<div class="proto-frozen-note">Frozen at signature, and currently matches the medication record.</div>';
     }
 
     return '<section class="element proto-artefact' + (a.status === 'cancelled' ? ' is-cancelled' : '') + '">'
       + '<header class="element-header">'
       +   '<h3 class="element-title">' + esc(a.id)
-      +     '<span class="proto-status ' + a.status + '">' + esc(ARTEFACT_STATES[a.status].label) + '</span></h3>'
+      +     '<span class="proto-status ' + a.status + '">' + esc(ARTEFACT_STATES[a.status].label) + '</span>'
+      +     (diverged.length
+              ? '<span class="highlighter orange proto-diverged-flag" title="The medication record has changed since this order was signed">'
+                + '<i class="oe-i warning-orange small pad-right"></i>Record changed</span>'
+              : '')
+      +   '</h3>'
       + '</header>'
       + '<div class="element-data full-width"><div class="data-group">'
       +   '<div class="proto-artefact-meta">' + meta.join('<br>') + '</div>'
       +   '<div class="proto-state-note">' + esc(ARTEFACT_STATES[a.status].note) + '</div>'
       +   '<table class="standard proto-sign-table"><thead><tr><th>Drug</th>'
-      +     '<th>' + (frozen ? 'Directions as issued' : 'Directions (live from the record)') + '</th><th>Dispense location</th></tr></thead>'
+      +     '<th>' + (frozen ? 'Directions as signed' : 'Directions (live from the record)') + '</th><th>Dispense location</th></tr></thead>'
       +     '<tbody>' + rows + '</tbody></table>'
       +   '<div class="proto-worklist-line"><span class="proto-worklist-label">Pharmacy worklist</span> ' + chips
       +     '<span class="proto-worklist-state">' + worklistState(a) + '</span></div>'
@@ -1130,10 +1196,15 @@
     var ft = FORM_TYPES[a.formType] || FORM_TYPES.hospital;
     if (a.status === 'cancelled') return 'Shown as cancelled';
     if (!ft.pharmacy) return 'Never on the hospital pharmacy worklist';
-    if (!isIssued(a)) return 'Not on the worklist until issued';
+    /* Signed, not just issued. The first dispensing signature is one of the things
+       that issues an order, so an issued-only worklist would mean pharmacy could
+       never start. Today print is not part of the filter either, so unprinted
+       hospital orders reach pharmacy and must go on doing so. Drafts do not. */
+    if (isDraft(a)) return 'Not on the worklist while unsigned';
     if (a.status === 'complete') return 'Complete, off the worklist';
     var left = outstandingRoles(a).length;
-    return 'Outstanding, ' + left + ' of ' + PHARMACY_ROLES.length + ' role' + (left === 1 ? '' : 's') + ' to sign';
+    return 'Outstanding, ' + left + ' of ' + PHARMACY_ROLES.length + ' role' + (left === 1 ? '' : 's') + ' to sign'
+      + (divergedItems(a).length ? '. Flagged: record changed since signature' : '');
   }
 
   /* --------------------------------------------------------------- actions */
@@ -1196,6 +1267,7 @@
       case 'confirm':  openConfirm(e); break;
       case 'restart':  restart(e); break;
       case 'rx-sign':      openSign(t.dataset.rx); break;
+      case 'rx-void':      rxVoid(t.dataset.rx); break;
       case 'rx-print':     rxPrint(t.dataset.rx); break;
       case 'rx-role':      rxSignRole(t.dataset.rx, t.dataset.role); break;
       case 'rx-cancel':    openCancel(t.dataset.rx, false); break;
@@ -1638,11 +1710,13 @@
     } else if (a && a.status === 'signed') {
       note.hidden = false;
       note.innerHTML = 'This medication is on <strong>' + esc(a.id) + '</strong>, which is signed but not yet issued. '
-        + 'The prescription will follow this change, and the signature will be voided so it has to be signed again.';
+        + 'The order was snapshotted when it was signed, so it will <strong>not</strong> change. '
+        + 'It will be flagged as diverged from the record, including to the dispensing pharmacist. '
+        + 'To make the order match, void the signature on the Prescriptions tab and sign again.';
     } else if (a) {
       note.hidden = false;
-      note.innerHTML = 'This medication is on <strong>' + esc(a.id) + '</strong>, a pending order. '
-        + 'The prescription is not frozen yet, so it will simply pick up this change.';
+      note.innerHTML = 'This medication is on <strong>' + esc(a.id) + '</strong>, an unsigned draft. '
+        + 'A draft holds no directions of its own, so it will simply pick this change up.';
     } else {
       note.hidden = true;
     }
@@ -1961,10 +2035,10 @@
     if (!wantOrder && at >= 0) STATE.selected.splice(at, 1);
 
     var after = directions(e);
-    var voided = [];
+    var flagged = [];
     if (before !== after) {
       e.history.push(h(nowStamp(), user().name, 'Changed', after, 'Medication record'));
-      voided = voidSignatureFor(e);
+      flagged = flagDivergence(e);
     }
     STATE.lastChanged = e.id;
     closePopups();
@@ -1973,12 +2047,14 @@
     if (before !== after) {
       var a = liveArtefactFor(e);
       var msg = '<strong>' + esc(e.drug) + '</strong> changed to ' + esc(after) + '.';
-      if (voided.length) {
-        msg += ' ' + esc(voided.join(', ')) + ' was signed but not issued, so the change flowed through and the signature has been voided. Sign again to issue.';
-      } else if (a && isIssued(a)) {
-        msg += ' ' + esc(a.id) + ' has been issued and is unchanged, so it now shows as diverged from the record.';
-      } else if (a) {
-        msg += ' ' + esc(a.id) + ' is pending, so it picked the change up.';
+      if (flagged.length && a && a.status === 'signed') {
+        msg += ' ' + esc(flagged.join(', ')) + ' was signed before this change, so it still says what was signed. '
+          + 'It is now flagged as diverged, on the order, in the timeline and on the pharmacy worklist. '
+          + 'To make the order match, void the signature and sign again.';
+      } else if (flagged.length) {
+        msg += ' ' + esc(flagged.join(', ')) + ' has been issued and is unchanged, so it now shows as diverged from the record.';
+      } else if (a && isDraft(a)) {
+        msg += ' ' + esc(a.id) + ' is an unsigned draft, so it picked the change up.';
       }
       alertBox('', msg);
     }
@@ -2414,11 +2490,10 @@
 
   /* Signing from the element creates the order there and then. There is no
      confirmation dialog in between, because the bar already says what is
-     selected and which form it is going on, and the order is not frozen when it
-     is created: the dispensing instruction and location can still be set on the
-     pending order, and the record can still move under it. Freezing happens at
-     issue. Fewer screens, and nothing is lost that cannot be corrected before
-     the order leaves the building. */
+     selected and which form it is going on, and nothing the dialog used to
+     gather is a clinical direction: the dispensing instruction, the location and
+     the note all sit on the order and stay editable until issue without
+     disturbing the signature. The directions themselves freeze at signature. */
   function prescribeFromBar(form, sign) {
     var all = selectedEntries();
     var included = all.filter(function (e) { return orderableForms(e).indexOf(form) >= 0; });
@@ -2462,14 +2537,17 @@
       prescriber: user().name,
       formType: form,
       condition: cond,
-      status: sign ? 'signed' : 'pending',
+      status: 'draft',
       entryIds: prescribing.entries.map(function (e) { return e.id; }),
       locations: locs,
       notes: '',
-      signedAt: sign ? nowStamp() : null, signedBy: sign ? user().name : null,
+      signedAt: null, signedBy: null,
       issuedAt: null, issuedBy: null, issueTrigger: null,
       printedAt: null, printedBy: null
     });
+    /* Signing snapshots the directions. An order saved as a draft holds none of
+       its own and goes on projecting the record until somebody signs it. */
+    if (sign) signArtefact(a);
     /* An FP10 or PGD supply needs no hospital pharmacy signatures, which today is
        inferred from the condition names on the items. Here it is a property of the form. */
     if (!f.pharmacy) a.pharmacy = {};
@@ -2546,14 +2624,31 @@
   $('#proto-sign-pin').addEventListener('input', function () {
     if (!/^\d{6}$/.test(this.value)) return;
     var a = rxById(signingId);
-    a.status = 'signed';
-    a.signedAt = nowStamp();
-    a.signedBy = user().name;
+    if (!a) return;
+    signArtefact(a);
     closePopups();
     render();
     alertBox('success', '<strong>' + esc(a.id) + '</strong> signed by ' + esc(a.signedBy)
-      + '. It is still not issued, so it can still be amended. Editing any of these medications will void this signature.');
+      + '. These directions are now snapshotted, so a later change to the medication record will not alter this order. '
+      + 'To amend it, void the signature and sign again.');
   });
+
+  /* ---- void and re-sign ---- */
+
+  /* The amendment route for a signed order. The order keeps its number, so the
+     forgotten drug does not become a second prescription. Restricted to
+     prescribers: a colleague editing the record cannot touch a signed order. */
+  function rxVoid(id) {
+    var a = rxById(id);
+    if (!user().canPrescribe) {
+      alertBox('', 'Only a prescriber can void a signature. You can change the medication record, but the signed order will keep saying what was signed.');
+      return;
+    }
+    voidSignature(a, 'Amended before issue');
+    render();
+    alertBox('', '<strong>' + esc(a.id) + '</strong> is a draft again and its snapshot has been discarded, so it follows the record until it is signed. '
+      + esc(a.signatures[a.signatures.length - 1].by) + '\u2019s previous signature is kept in the order history along with what it covered.');
+  }
 
   /* ---- issue ---- */
 
@@ -2666,7 +2761,7 @@
         /* A correction stays on the same form as the order it replaces. */
         formType: a.formType,
         locations: a.locations,
-        status: 'pending',
+        status: 'draft',
         entryIds: live,
         signedAt: null, signedBy: null,
         issuedAt: null, issuedBy: null, issueTrigger: null,
