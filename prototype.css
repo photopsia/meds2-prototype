@@ -349,6 +349,16 @@ table.proto-history-table tr + tr td { border-top: 1px solid rgba(128,128,128,0.
    stylesheet does the work. It is positioned against its open button. */
 #adder-set { position: fixed; z-index: 400; }
 #adder-set .proto-empty { padding: 4px 8px; color: #666; }
+/* Resolving a set against what the patient is already on */
+.proto-setplan-row { border-top: 1px solid #ccc; padding: 8px 0; }
+table.standard.proto-setplan-diff { width: auto; margin: 4px 0 6px 0; }
+table.standard.proto-setplan-diff td { padding: 1px 14px 1px 0; width: auto; white-space: nowrap; }
+.proto-setplan-note { margin: 2px 0 8px 0; color: #555; }
+.proto-setplan-arrow { color: #888; }
+.proto-setplan-list { margin: 4px 0 10px 16px; list-style: disc; }
+.proto-setplan-list li { margin: 2px 0; }
+.proto-choice-row { display: flex; gap: 4px; }
+
 /* The stock li puts one label in the row; ours carries status glyphs too. */
 #proto-set-list li .oe-i { margin-left: 4px; }
 #proto-set-list li .oe-i.info { margin-left: 0; margin-right: 2px; }

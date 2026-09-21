@@ -72,8 +72,9 @@
     </label>
     <label class="proto-role-switch">
       Next appt
+      <!-- The booked option's value and label are filled in from today at load. -->
       <select id="proto-appt">
-        <option value="2026-10-10">10 Oct 2026</option>
+        <option value="" id="proto-appt-booked">Booked</option>
         <option value="">Not booked</option>
       </select>
     </label>
@@ -230,8 +231,8 @@
         <div class="proto-element-footer">
           <div class="proto-allergies"><i class="oe-i allergy small pad-r no-click"></i><span id="proto-allergy-list"></span></div>
           <div class="add-data-actions">
-            <button class="button hint proto-set-add" id="proto-btn-pgd" type="button" hidden>Add PGD</button>
-            <button class="button hint proto-set-add" id="proto-btn-set" type="button">Add Medication Set</button>
+            <button class="button hint proto-set-add" id="proto-btn-pgd" type="button" hidden>Add PGD Set</button>
+            <button class="button hint proto-set-add" id="proto-btn-set" type="button">Add standard set</button>
             <button class="button hint green proto-add" id="proto-btn-add" type="button" title="Add medication"><i class="oe-i plus"></i></button>
           </div>
         </div>
@@ -359,7 +360,7 @@
               <tr>
                 <td>PGD supply is per user and per drug</td>
                 <td>A PGD item lands on someone else's prescription under their signature (OE-18130)</td>
-                <td>Switch role to Nurse. Add PGD set appears, and Supply under PGD is offered only on the drugs her protocols cover.</td>
+                <td>Switch role to Nurse. Add PGD Set appears, and Supply under PGD is offered only on the drugs her protocols cover.</td>
               </tr>
               <tr>
                 <td>Quick add is preserved, but per drug</td>
@@ -575,6 +576,24 @@
       </td></tr>
     </tbody>
   </table>
+</div>
+
+<!-- Shown when a set overlaps what the patient is already on. A set add is
+     several drug actions, so the overlap has to be resolved per drug rather
+     than by accepting or abandoning the whole set. -->
+<div class="oe-popup-wrap" id="popup-setplan" hidden>
+  <div class="oe-popup">
+    <div class="title" id="proto-setplan-title">Add standard set</div>
+    <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
+    <div class="oe-popup-content">
+      <div class="alert-box patient" id="proto-setplan-lead"></div>
+      <div id="proto-setplan-body"></div>
+      <div class="popup-actions flex-right">
+        <button class="green hint" id="proto-setplan-go" type="button">Apply</button>
+        <button class="button proto-close" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="oe-popup-wrap" id="popup-advise" hidden>

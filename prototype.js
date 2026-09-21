@@ -5,7 +5,18 @@
 (function () {
   'use strict';
 
-  var TODAY = '2026-09-19';
+  /* Dates are relative to the day the prototype is opened, so the seeded story
+     reads the same whenever it is reviewed and the date pickers behave. */
+  function d(offsetDays) {
+    var t = new Date();
+    t.setHours(12, 0, 0, 0);
+    t.setDate(t.getDate() + offsetDays);
+    return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0')
+      + '-' + String(t.getDate()).padStart(2, '0');
+  }
+  function ts(offsetDays, time) { return d(offsetDays) + ' ' + time; }
+
+  var TODAY = d(0);
 
   var USERS = {
     prescriber: { name: 'Mr A Prescriber', role: 'Consultant ophthalmologist', canPrescribe: true, canPGD: false, canDispense: false },
@@ -201,7 +212,7 @@
 
   var STATE = {
     institution: 'qah',
-    nextAppointment: '2026-10-10',
+    nextAppointment: d(21),
     user: 'prescriber',
     seq: 20,
     rxSeq: 1041,
@@ -264,26 +275,26 @@
 
   function seed() {
     STATE.entries = [
-      mk({ drug: 'Latanoprost', sub: '50 micrograms/ml eye drops', indication: 'D1', advice: { action: 'hold', anchor: 'before-appt', days: 7, date: '', text: 'Stop using your latanoprost drops 7 days before your next appointment, so the pressure can be measured without treatment. Do not restart until you are told to.', by: 'Mr A Prescriber', at: '2026-09-05 10:12', status: 'awaiting', outcomeNote: '' }, group: 'eye',
+      mk({ drug: 'Latanoprost', sub: '50 micrograms/ml eye drops', indication: 'D1', advice: { action: 'hold', anchor: 'before-appt', days: 7, date: '', text: 'Stop using your latanoprost drops 7 days before your next appointment, so the pressure can be measured without treatment. Do not restart until you are told to.', by: 'Mr A Prescriber', at: ts(-14, '10:12'), status: 'awaiting', outcomeNote: '' }, group: 'eye',
            dose: '1', unit: 'drop', freq: 'At night', route: 'Eye', lat: 'Right',
-           start: '2026-03-12',
+           start: d(-191),
            history: [
-             h('2026-03-12 09:14', 'Mr A Prescriber', 'Started', '1 drop, At night, Eye, Right', 'Glaucoma clinic')
+             h(ts(-191, '09:14'), 'Mr A Prescriber', 'Started', '1 drop, At night, Eye, Right', 'Glaucoma clinic')
            ] }),
       mk({ drug: 'Dorzolamide / Timolol', sub: '2% / 0.5% eye drops (Cosopt)', indication: 'D1', group: 'eye',
            dose: '1', unit: 'drop', freq: 'Twice daily', route: 'Eye', lat: 'Both',
-           start: '2026-06-04',
+           start: d(-107),
            history: [
-             h('2026-06-04 11:02', 'Mr A Prescriber', 'Started', '1 drop, Twice daily, Eye, Both', 'Glaucoma clinic'),
-             h('2026-06-04 11:02', 'Mr A Prescriber', 'Replaced Timolol 0.5%', 'Switched to combination preparation', 'Glaucoma clinic')
+             h(ts(-107, '11:02'), 'Mr A Prescriber', 'Started', '1 drop, Twice daily, Eye, Both', 'Glaucoma clinic'),
+             h(ts(-107, '11:02'), 'Mr A Prescriber', 'Replaced Timolol 0.5%', 'Switched to combination preparation', 'Glaucoma clinic')
            ] }),
       mk({ drug: 'Dexamethasone', sub: '0.1% eye drops (Maxidex)', indication: 'D2', group: 'eye',
            dose: '1', unit: 'drop', freq: 'Four times daily', route: 'Eye', lat: 'Left',
            start: TODAY, duration: '7 days',
            taper: [
-             { from: '2026-09-26', dose: '1', freq: 'Three times daily', duration: '7 days' },
-             { from: '2026-10-03', dose: '1', freq: 'Twice daily', duration: '7 days' },
-             { from: '2026-10-10', dose: '1', freq: 'Once daily', duration: '7 days' }
+             { from: d(7), dose: '1', freq: 'Three times daily', duration: '7 days' },
+             { from: d(14), dose: '1', freq: 'Twice daily', duration: '7 days' },
+             { from: d(21), dose: '1', freq: 'Once daily', duration: '7 days' }
            ],
            history: [
              h(TODAY + ' 14:20', 'Mr A Prescriber', 'Started', '1 drop, Four times daily, Eye, Left', 'Uveitis clinic'),
@@ -291,7 +302,7 @@
            ] }),
       mk({ drug: 'Ciclosporin', sub: '0.1% eye drops (Ikervis)', group: 'eye',
            dose: '1', unit: 'drop', freq: 'Once daily', route: 'Eye', lat: 'Both',
-           start: '2026-10-01', supply: 'hospital',
+           start: d(12), supply: 'hospital',
            history: [
              h(TODAY + ' 14:26', 'Mr A Prescriber', 'Planned', 'To start 01 Oct 2026 once steroid course completes', 'Uveitis clinic')
            ] }),
@@ -309,37 +320,37 @@
          default, which is why the row reads it in normal rather than muted text. */
       mk({ drug: 'Prednisolone', sub: '5mg tablets', indication: 'D2', group: 'systemic-ophth',
            dose: '30', unit: 'mg', freq: 'Once daily', route: 'Oral', lat: '',
-           start: '2026-08-15', supply: 'hospital',
+           start: d(-35), supply: 'hospital',
            history: [
-             h('2026-08-15 10:40', 'Mr A Prescriber', 'Started', '40mg, Once daily, Oral', 'Uveitis clinic'),
-             h('2026-09-05 10:15', 'Mr A Prescriber', 'Changed', '30mg, Once daily, Oral', 'Uveitis clinic')
+             h(ts(-35, '10:40'), 'Mr A Prescriber', 'Started', '40mg, Once daily, Oral', 'Uveitis clinic'),
+             h(ts(-14, '10:15'), 'Mr A Prescriber', 'Changed', '30mg, Once daily, Oral', 'Uveitis clinic')
            ] }),
       mk({ drug: 'Hydroxychloroquine', sub: '200mg tablets', indication: 'D4', group: 'systemic-other',
            dose: '200', unit: 'mg', freq: 'Once daily', route: 'Oral', lat: '',
-           start: '2022-09-01', supply: 'gp', source: 'GP record',
-           history: [ h('2022-09-01 00:00', 'GP record import', 'Recorded', '200mg, Once daily, Oral', 'Primary care') ] }),
+           start: d(-1479), supply: 'gp', source: 'GP record',
+           history: [ h(ts(-1479, '00:00'), 'GP record import', 'Recorded', '200mg, Once daily, Oral', 'Primary care') ] }),
       mk({ drug: 'Amlodipine', sub: '5mg tablets', indication: 'D5', group: 'systemic-other',
            dose: '5', unit: 'mg', freq: 'Once daily', route: 'Oral', lat: '',
-           start: '2024-01-10', supply: 'gp', source: 'GP record',
-           history: [ h('2024-01-10 00:00', 'GP record import', 'Recorded', '5mg, Once daily, Oral', 'Primary care') ] }),
+           start: d(-983), supply: 'gp', source: 'GP record',
+           history: [ h(ts(-983, '00:00'), 'GP record import', 'Recorded', '5mg, Once daily, Oral', 'Primary care') ] }),
       mk({ drug: 'Metformin', sub: '500mg tablets', indication: 'D6', group: 'systemic-other',
            dose: '500', unit: 'mg', freq: 'Twice daily', route: 'Oral', lat: '',
-           start: '2023-05-02', supply: 'gp', source: 'GP record',
-           history: [ h('2023-05-02 00:00', 'GP record import', 'Recorded', '500mg, Twice daily, Oral', 'Primary care') ] }),
+           start: d(-1236), supply: 'gp', source: 'GP record',
+           history: [ h(ts(-1236, '00:00'), 'GP record import', 'Recorded', '500mg, Twice daily, Oral', 'Primary care') ] }),
       /* The reason "Patient" has to exist as a value. This is bought over the
          counter, so it will never appear in the GP record, and without somewhere
          to say so reconciliation would report it as missing at every comparison,
          forever. */
       mk({ drug: 'Hypromellose', sub: '0.3% eye drops', group: 'eye',
            dose: '1', unit: 'drop', freq: 'As required', route: 'Eye', lat: 'Both',
-           start: '2025-04-18', supply: 'patient', source: 'Patient reported',
-           history: [ h('2025-04-18 15:30', 'Miss B Nurse', 'Recorded', 'Bought over the counter', 'Glaucoma clinic') ] }),
+           start: d(-519), supply: 'patient', source: 'Patient reported',
+           history: [ h(ts(-519, '15:30'), 'Miss B Nurse', 'Recorded', 'Bought over the counter', 'Glaucoma clinic') ] }),
       mk({ drug: 'Timolol', sub: '0.5% eye drops', group: 'eye',
            dose: '1', unit: 'drop', freq: 'Twice daily', route: 'Eye', lat: 'Both',
-           start: '2025-11-20', end: '2026-06-04', status: 'stopped', stopReason: 'Not tolerated', supply: '',
+           start: d(-303), end: d(-107), status: 'stopped', stopReason: 'Not tolerated', supply: '',
            history: [
-             h('2025-11-20 09:30', 'Mr A Prescriber', 'Started', '1 drop, Twice daily, Eye, Both', 'Glaucoma clinic'),
-             h('2026-06-04 11:01', 'Mr A Prescriber', 'Stopped', 'Not tolerated', 'Glaucoma clinic')
+             h(ts(-303, '09:30'), 'Mr A Prescriber', 'Started', '1 drop, Twice daily, Eye, Both', 'Glaucoma clinic'),
+             h(ts(-107, '11:01'), 'Mr A Prescriber', 'Stopped', 'Not tolerated', 'Glaucoma clinic')
            ] })
     ];
 
@@ -347,16 +358,16 @@
     var cos = findByDrug('Dorzolamide / Timolol');
     STATE.artefacts = [ rx({
       id: 'RX-1041',
-      date: '2026-06-04',
+      date: d(-107),
       prescriber: 'Mr A Prescriber',
       formType: 'fp10',
       status: 'issued',
       entryIds: [lat.id, cos.id],
       frozen: [ frozenItem(lat, 'fp10'), frozenItem(cos, 'fp10') ],
-      signedAt: '2026-06-04 11:05', signedBy: 'Mr A Prescriber',
-      signatures: [{ by: 'Mr A Prescriber', at: '2026-06-04 11:05', voidedAt: null, voidedBy: null, reason: null }],
-      issuedAt: '2026-06-04 11:08', issuedBy: 'Mr A Prescriber', issueTrigger: 'print',
-      printedAt: '2026-06-04 11:08', printedBy: 'Mr A Prescriber', printCount: 1,
+      signedAt: ts(-107, '11:05'), signedBy: 'Mr A Prescriber',
+      signatures: [{ by: 'Mr A Prescriber', at: ts(-107, '11:05'), voidedAt: null, voidedBy: null, reason: null }],
+      issuedAt: ts(-107, '11:08'), issuedBy: 'Mr A Prescriber', issueTrigger: 'print',
+      printedAt: ts(-107, '11:08'), printedBy: 'Mr A Prescriber', printCount: 1,
       /* An FP10 does not go through hospital pharmacy, so no dispensing roles apply. */
       pharmacy: {}
     }) ];
@@ -1236,8 +1247,15 @@
     if (ev.target.closest('#proto-set-confirm')) {
       ev.preventDefault();
       var picked = $('#proto-set-list li.selected');
-      if (picked) { addSet(picked.dataset.id); }
       closeSetPicker();
+      if (picked) addSet(picked.dataset.id);
+      return;
+    }
+    if (ev.target.closest('#proto-setplan-go')) {
+      ev.preventDefault();
+      var choices = {};
+      $$('#proto-setplan-body input[type=radio]:checked').forEach(function (r) { choices[r.name] = r.value; });
+      applySetPlan(pendingSetPlan.src, pendingSetPlan.plan, choices);
       return;
     }
     /* Close on the adder's own close icon, or on any click outside it. */
@@ -2134,26 +2152,152 @@
     $$('#proto-set-list li.selected').forEach(function (li) { li.classList.remove('selected'); });
   }
 
+  /* What a set would do to this patient, worked out before anything changes.
+     A set is rarely all-new or all-duplicate: the usual case is that the patient
+     is already on one of its drugs, sometimes on different directions. Silently
+     overwriting those is wrong, and silently skipping them is also wrong, because
+     the clinician chose the set for a reason. So the overlap is resolved per drug. */
+  function planSetAdd(src) {
+    var plan = { add: [], same: [], differs: [], allergy: [] };
+    src.items.forEach(function (i) {
+      var cat = CATALOGUE.filter(function (c) { return c.drug === i.drug; })[0] || {};
+      if (cat.allergy) { plan.allergy.push({ item: i }); return; }
+
+      var cf = conflictsFor(cat);
+      var exact = cf.filter(function (x) { return x.tier === 1; })[0];
+      if (!exact) {
+        plan.add.push({ item: i, cat: cat, advisory: cf.length ? cf[0] : null });
+        return;
+      }
+      /* Already on it. The question is whether the set says something different. */
+      var e = exact.entry;
+      var wanted = { dose: i.dose, unit: i.unit, freq: i.freq, route: i.route, lat: i.lat };
+      var diffs = [];
+      if (String(e.dose) !== String(i.dose) || e.unit !== i.unit) {
+        diffs.push({ field: 'Dose', now: e.dose + ' ' + e.unit, set: i.dose + ' ' + i.unit });
+      }
+      if (e.freq !== i.freq) diffs.push({ field: 'Frequency', now: e.freq, set: i.freq });
+      /* Side counts as a difference. A set written for both eyes applied to a
+         patient on one is a real extension of treatment, not a formatting detail. */
+      if (i.lat && (e.lat || '') !== i.lat) diffs.push({ field: 'Side', now: e.lat || 'none', set: i.lat });
+      if (i.route && e.route !== i.route) diffs.push({ field: 'Route', now: e.route, set: i.route });
+      if (i.duration && (e.duration || 'Ongoing') !== i.duration) {
+        diffs.push({ field: 'Duration', now: e.duration || 'Ongoing', set: i.duration });
+      }
+      if (diffs.length) plan.differs.push({ item: i, entry: e, diffs: diffs, wanted: wanted });
+      else plan.same.push({ item: i, entry: e });
+    });
+    return plan;
+  }
+
+  var pendingSetPlan = null;
+
+  function openSetPlan(src, plan) {
+    pendingSetPlan = { src: src, plan: plan };
+    $('#proto-setplan-title').textContent = src.name;
+
+    var lead = [];
+    if (plan.add.length) lead.push(plan.add.length + ' to add');
+    if (plan.differs.length) lead.push(plan.differs.length + ' already recorded on different directions');
+    if (plan.same.length) lead.push(plan.same.length + ' already recorded and unchanged');
+    if (plan.allergy.length) lead.push(plan.allergy.length + ' blocked on a recorded allergy');
+    $('#proto-setplan-lead').textContent = 'This set overlaps what the patient is already on: '
+      + lead.join(', ') + '. Choose what to do with each before anything is written.';
+
+    var html = '';
+
+    if (plan.differs.length) {
+      html += '<h4>Already recorded, on different directions</h4>'
+        + '<p class="proto-setplan-note">The set was written for a standard course and this patient has been '
+        + 'set up differently. Neither answer is automatically right, so neither is applied by default.</p>';
+      plan.differs.forEach(function (x, n) {
+        html += '<div class="proto-setplan-row"><div class="proto-strong">' + esc(x.item.drug) + '</div>'
+          + '<table class="standard proto-setplan-diff"><tbody>'
+          + x.diffs.map(function (df) {
+              return '<tr><td>' + esc(df.field) + '</td><td>' + esc(df.now)
+                + '</td><td class="proto-setplan-arrow">&rarr;</td><td><strong>' + esc(df.set) + '</strong></td></tr>';
+            }).join('')
+          + '</tbody></table>'
+          + choiceRow('setplan-' + n, [
+              ['keep', 'Keep what is recorded'],
+              ['take', 'Change to the set']
+            ], 'keep')
+          + '</div>';
+      });
+    }
+
+    if (plan.add.length) {
+      html += '<h4>Will be added</h4><ul class="proto-setplan-list">'
+        + plan.add.map(function (x) {
+            return '<li>' + esc(x.item.drug) + ' &mdash; ' + esc(setDirections(x.item))
+              + (x.advisory ? ' <span class="proto-tag warn">' + esc(x.advisory.detail)
+                  + ' as ' + esc(x.advisory.entry.drug) + '</span>' : '')
+              + '</li>';
+          }).join('') + '</ul>';
+    }
+
+    if (plan.same.length) {
+      html += '<h4>Already recorded, nothing to do</h4><ul class="proto-setplan-list">'
+        + plan.same.map(function (x) {
+            return '<li>' + esc(x.item.drug) + ' &mdash; already on ' + esc(setDirections(x.item)) + '</li>';
+          }).join('') + '</ul>';
+    }
+
+    if (plan.allergy.length) {
+      html += '<h4>Blocked on a recorded allergy</h4><ul class="proto-setplan-list">'
+        + plan.allergy.map(function (x) {
+            return '<li><i class="oe-i allergy small no-click"></i> ' + esc(x.item.drug)
+              + ' &mdash; not added. Overriding an allergy is a deliberate act with a reason, '
+              + 'not something a set add should do on your behalf.</li>';
+          }).join('') + '</ul>';
+    }
+
+    $('#proto-setplan-body').innerHTML = html;
+    openPopup('popup-setplan');
+  }
+
+  /* Same button-list styling as the rest of the element, returned as markup
+     because these rows are built before they are in the document. */
+  function choiceRow(name, pairs, current) {
+    return '<div class="proto-choice-row">' + pairs.map(function (p) {
+      return '<label class="highlight as-button inline"><input type="radio" name="' + name
+        + '" value="' + p[0] + '"' + (p[0] === current ? ' checked' : '') + '>'
+        + '<span class="btn">' + esc(p[1]) + '</span></label>';
+    }).join('') + '</div>';
+  }
+
+  function setDirections(i) {
+    var bits = [i.dose + (i.unit === 'drop' ? ' drop' + (i.dose === '1' ? '' : 's') : i.unit), i.freq, i.route];
+    if (i.lat) bits.push(i.lat);
+    if (i.duration) bits.push(i.duration);
+    return bits.join(', ');
+  }
+
   /* A set add is several individual drug actions, not a block. So the same
      uniqueness and allergy rules apply to each drug, and each is attributed. */
   function addSet(setId) {
     var pgd = setMode === 'pgd';
     var src = (pgd ? myPgds() : DRUG_SETS).filter(function (s) { return s.id === setId; })[0];
-    var added = [], skippedDup = [], skippedAllergy = [], advisories = [];
+    var plan = planSetAdd(src);
 
-    src.items.forEach(function (i) {
-      var cat = CATALOGUE.filter(function (c) { return c.drug === i.drug; })[0] || {};
-      var cf = conflictsFor(cat);
-      /* Same rules as a single add, and only tier 1 blocks. Skipping tiers 2 and 3
-         as well would make a set add quietly stricter than adding the same drugs
-         one at a time, which is the kind of inconsistency people work around. */
-      if (cf.length && cf[0].tier === 1) { skippedDup.push(i.drug); return; }
-      if (cf.length) advisories.push(i.drug + ' (' + cf[0].detail + ' as ' + cf[0].entry.drug + ')');
-      if (cat.allergy) { skippedAllergy.push(i.drug); return; }
+    /* Nothing to resolve: no drug the patient is already on differs from the set,
+       and nothing is blocked. Just do it, because a dialog that only ever says
+       "yes, that worked" is a dialog people stop reading. */
+    if (!plan.differs.length && !plan.allergy.length) { applySetPlan(src, plan, {}); return; }
+    openSetPlan(src, plan);
+  }
 
+  /* choices maps the index of a differing drug to 'keep' or 'take'. */
+  function applySetPlan(src, plan, choices) {
+    var pgd = setMode === 'pgd';
+    var added = [], changed = [], kept = [], advisories = [];
+
+    plan.add.forEach(function (x) {
+      var i = x.item, cat = x.cat;
       var e = mk({
         drug: i.drug, sub: cat.sub || '', group: cat.group || 'eye',
         dose: i.dose, unit: i.unit, freq: i.freq, route: i.route, lat: i.lat,
+        duration: i.duration || 'Ongoing',
         start: TODAY, supply: pgd ? 'hospital' : (i.responsibility || null),
         indication: cat.sugg || null,
         history: [ h(nowStamp(), user().name, 'Started',
@@ -2162,28 +2306,47 @@
       if (pgd) e.pgd = src.name;
       STATE.entries.push(e);
       added.push(i.drug);
+      if (x.advisory) advisories.push(i.drug + ' (' + x.advisory.detail + ' as ' + x.advisory.entry.drug + ')');
+    });
+
+    /* Taking the set's directions is a change to the existing drug, not a second
+       row. It goes through the same primitive and the same history line as any
+       other change, so the record reads "changed", not "added twice". */
+    plan.differs.forEach(function (x, n) {
+      if (choices['setplan-' + n] !== 'take') { kept.push(x.item.drug); return; }
+      var e = x.entry, before = directions(e);
+      e.dose = x.wanted.dose; e.unit = x.wanted.unit;
+      e.freq = x.wanted.freq; e.route = x.wanted.route;
+      if (x.wanted.lat) e.lat = x.wanted.lat;
+      if (x.item.duration) { e.duration = x.item.duration; e.end = courseEnd(e.start, e.duration, e.taper); }
+      e.history.push(h(nowStamp(), user().name, 'Changed',
+        directions(e) + ' (from ' + before + ', taken from ' + src.name + ')', 'Medication record'));
+      flagDivergence(e);
+      changed.push(x.item.drug);
     });
 
     closePopups();
     render();
 
-    var msg = added.length
-      ? '<strong>' + esc(src.name) + '</strong>: added ' + esc(added.join(', ')) + '. '
-      : '<strong>' + esc(src.name) + '</strong>: nothing added. ';
-    if (skippedDup.length) {
-      msg += 'Skipped ' + esc(skippedDup.join(', ')) + ', already on the record. A set add follows the same uniqueness '
-        + 'rule as a single add, so change the existing row rather than creating a second one. ';
+    var parts = [];
+    if (added.length) parts.push('added ' + esc(added.join(', ')));
+    if (changed.length) parts.push('changed ' + esc(changed.join(', ')) + ' to the set directions');
+    if (kept.length) parts.push('left ' + esc(kept.join(', ')) + ' as recorded');
+    if (plan.same.length) {
+      parts.push('skipped ' + esc(plan.same.map(function (x) { return x.item.drug; }).join(', '))
+        + ', already on the same directions');
     }
+    var msg = '<strong>' + esc(src.name) + '</strong>: ' + (parts.length ? parts.join(', ') : 'nothing to do') + '. ';
     if (advisories.length) {
       msg += 'Added with an advisory: ' + esc(advisories.join('; ')) + '. Not blocked, for the same reason it is not '
         + 'blocked on a single add, but worth a look. ';
     }
-    if (skippedAllergy.length) {
-      msg += 'Skipped ' + esc(skippedAllergy.join(', ')) + ' on a recorded allergy, which in the real system would '
-        + 'be an explicit override with a reason. ';
+    if (plan.allergy.length) {
+      msg += 'Not added on a recorded allergy: '
+        + esc(plan.allergy.map(function (x) { return x.item.drug; }).join(', ')) + '. ';
     }
     if (pgd) msg += 'Supply is set to the protocol, and each drug is attributed to you individually.';
-    alertBox(added.length ? 'success' : 'patient', msg);
+    alertBox(added.length || changed.length ? 'success' : 'patient', msg);
   }
 
   $('#proto-institution').addEventListener('change', function () {
@@ -2872,6 +3035,10 @@
 
   seed();
   renderAllergies();
+  /* The booked appointment is three weeks out from whenever this is opened. */
+  var booked = $('#proto-appt-booked');
+  booked.value = STATE.nextAppointment;
+  booked.textContent = fmtDate(STATE.nextAppointment);
   STATE.committed = cloneEntries();
   switchView('record');
   render();
