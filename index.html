@@ -550,15 +550,31 @@
   </div>
 </div>
 
-<div class="oe-popup-wrap" id="popup-set" hidden>
-  <div class="oe-popup">
-    <div class="title" id="proto-set-title">Add standard set</div>
-    <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
-    <div class="oe-popup-content">
-      <div class="alert-box proto-inline-note" id="proto-set-note"></div>
-      <fieldset id="proto-set-list" class="btn-list multiline-fixed proto-set-list"></fieldset>
-    </div>
+<!-- The standard OpenEyes adder: one column, select a row, then "Click to add".
+     Markup and classes match OpenEyes.UI.AdderDialog so the bundled stylesheet
+     does the work. Anchored to the button that opened it, as the real one is. -->
+<div class="oe-add-select-search auto-width" id="adder-set" data-test="adder-dialog" hidden>
+  <div class="close-icon-btn proto-close" data-test="close-icon-btn">
+    <i class="oe-i remove-circle medium pro-theme selected"></i>
   </div>
+  <div class="add-icon-btn" id="proto-set-confirm" data-test="add-icon-btn">
+    <i class="oe-i plus pad pro-theme selected"></i>Click to add
+  </div>
+  <table class="select-options">
+    <thead>
+      <tr><th id="proto-set-header" data-test="add-header">Set name</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>
+        <div class="flex-layout flex-top flex-left">
+          <div>
+            <ul class="add-options cols-full single" id="proto-set-list"
+                data-multiselect="false" data-test="add-options"></ul>
+          </div>
+        </div>
+      </td></tr>
+    </tbody>
+  </table>
 </div>
 
 <div class="oe-popup-wrap" id="popup-advise" hidden>

@@ -1224,18 +1224,32 @@
   var editingId = null, stoppingId = null, taperDraft = [];
 
   document.addEventListener('click', function (ev) {
+    /* The set adder is handled before the shared lookup, because its rows are
+       plain li elements and would otherwise fall through it. */
+    var setRow = ev.target.closest('#proto-set-list li[data-id]');
+    if (setRow) {
+      ev.preventDefault();
+      $$('#proto-set-list li.selected').forEach(function (li) { li.classList.remove('selected'); });
+      setRow.classList.add('selected');
+      return;
+    }
+    if (ev.target.closest('#proto-set-confirm')) {
+      ev.preventDefault();
+      var picked = $('#proto-set-list li.selected');
+      if (picked) { addSet(picked.dataset.id); }
+      closeSetPicker();
+      return;
+    }
+    /* Close on the adder's own close icon, or on any click outside it. */
+    if (ev.target.closest('#adder-set .close-icon-btn')) { ev.preventDefault(); closeSetPicker(); return; }
+    if (!ev.target.closest('#adder-set')) closeSetPicker();
+
     var t = ev.target.closest('[data-act], .proto-tab, .proto-add, .proto-set-add, .proto-close, .proto-result, .proto-pin-label');
     if (!t) return;
 
     if (t.classList.contains('proto-set-add')) {
       ev.preventDefault();
-      openSetPicker(t.id === 'proto-btn-pgd' ? 'pgd' : 'standard');
-      return;
-    }
-    var setLabel = ev.target.closest && ev.target.closest('#proto-set-list label[data-set]');
-    if (setLabel) {
-      ev.preventDefault();
-      addSet(setLabel.dataset.set);
+      openSetPicker(t.id === 'proto-btn-pgd' ? 'pgd' : 'standard', t);
       return;
     }
 
@@ -2078,29 +2092,46 @@
 
   var setMode = 'standard';
 
-  function openSetPicker(mode) {
+  /* The standard OpenEyes adder. One column, pick a row, then "Click to add".
+     Deliberately not add-on-click: AdderDialog defaults returnOnSelect to false,
+     and a set add is several drugs at once, so it should not fire on a stray click. */
+  function openSetPicker(mode, btn) {
     setMode = mode;
     var pgd = mode === 'pgd';
-    $('#proto-set-title').textContent = pgd ? 'Add PGD set' : 'Add standard set';
-    $('#proto-set-note').innerHTML = pgd
-      ? 'Only the PGDs you are named on are listed. Each adds its drugs with the directions and supply held on the protocol.'
-      : 'Each set adds all of its drugs in one action, with the set\u2019s dose, frequency, supply and location already filled in.';
     var list = pgd ? myPgds() : DRUG_SETS;
+
+    $('#proto-set-header').textContent = pgd ? 'PGD name' : 'Set name';
     $('#proto-set-list').innerHTML = list.map(function (s) {
       var names = s.items.map(function (i) { return i.drug; });
       var dupes = names.filter(function (n) { return conflictsFor(catFor(n)).length > 0; });
       var allergic = names.filter(function (n) {
         return (CATALOGUE.filter(function (c) { return c.drug === n; })[0] || {}).allergy;
       });
-      return '<label data-set="' + s.id + '"><input type="radio" name="proto-set-pick">'
-        + '<span class="li"><span class="proto-drug-name">' + esc(s.name) + '</span>'
-        + (allergic.length ? ' <i class="oe-i allergy small no-click" title="Allergy: ' + esc(allergic.join(', ')) + '"></i>' : '')
-        + (dupes.length ? ' <i class="oe-i warning small no-click" title="Already on: ' + esc(dupes.join(', ')) + '"></i>' : '')
-        + '<span class="proto-opt-sub">' + esc(names.join(', '))
-        + (dupes.length ? ' &mdash; already on: ' + esc(dupes.join(', ')) : '')
-        + '</span></span></label>';
-    }).join('') || '<div class="proto-empty">Nothing available to you</div>';
-    openPopup('popup-set');
+      /* Real OpenEyes prepends an info icon on PGD rows whose tooltip lists the
+         drugs. The same affordance is useful on a standard set, so both get one. */
+      var tip = names.join(', ');
+      return '<li data-id="' + s.id + '" data-label="' + esc(s.name) + '">'
+        + '<i class="oe-i info small pad no-click" title="' + esc(tip) + '"></i>'
+        + '<span class="auto-width">' + esc(s.name) + '</span>'
+        + (allergic.length ? '<i class="oe-i allergy small no-click" title="Allergy: ' + esc(allergic.join(', ')) + '"></i>' : '')
+        + (dupes.length ? '<i class="oe-i warning small no-click" title="Already on: ' + esc(dupes.join(', ')) + '"></i>' : '')
+        + '</li>';
+    }).join('') || '<li class="proto-empty">Nothing available to you</li>';
+
+    var el = $('#adder-set');
+    el.hidden = false;
+    /* The real dialog is inserted after its open button and positioned against it. */
+    if (btn) {
+      var r = btn.getBoundingClientRect();
+      el.style.bottom = (window.innerHeight - r.top + 8) + 'px';
+      el.style.right = (window.innerWidth - r.right) + 'px';
+    }
+  }
+
+  function closeSetPicker() {
+    var el = $('#adder-set');
+    el.hidden = true;
+    $$('#proto-set-list li.selected').forEach(function (li) { li.classList.remove('selected'); });
   }
 
   /* A set add is several individual drug actions, not a block. So the same
@@ -2108,15 +2139,16 @@
   function addSet(setId) {
     var pgd = setMode === 'pgd';
     var src = (pgd ? myPgds() : DRUG_SETS).filter(function (s) { return s.id === setId; })[0];
-    var added = [], skippedDup = [], skippedAllergy = [];
+    var added = [], skippedDup = [], skippedAllergy = [], advisories = [];
 
     src.items.forEach(function (i) {
       var cat = CATALOGUE.filter(function (c) { return c.drug === i.drug; })[0] || {};
       var cf = conflictsFor(cat);
-      if (cf.length) {
-        skippedDup.push(i.drug + (cf[0].tier === 1 ? '' : ' (' + cf[0].detail + ' as ' + cf[0].entry.drug + ')'));
-        return;
-      }
+      /* Same rules as a single add, and only tier 1 blocks. Skipping tiers 2 and 3
+         as well would make a set add quietly stricter than adding the same drugs
+         one at a time, which is the kind of inconsistency people work around. */
+      if (cf.length && cf[0].tier === 1) { skippedDup.push(i.drug); return; }
+      if (cf.length) advisories.push(i.drug + ' (' + cf[0].detail + ' as ' + cf[0].entry.drug + ')');
       if (cat.allergy) { skippedAllergy.push(i.drug); return; }
 
       var e = mk({
@@ -2139,8 +2171,12 @@
       ? '<strong>' + esc(src.name) + '</strong>: added ' + esc(added.join(', ')) + '. '
       : '<strong>' + esc(src.name) + '</strong>: nothing added. ';
     if (skippedDup.length) {
-      msg += 'Skipped ' + esc(skippedDup.join('; ')) + ', because the same conflict rules apply to a set add as to '
-        + 'a single add. Change the existing row instead of creating a second one. ';
+      msg += 'Skipped ' + esc(skippedDup.join(', ')) + ', already on the record. A set add follows the same uniqueness '
+        + 'rule as a single add, so change the existing row rather than creating a second one. ';
+    }
+    if (advisories.length) {
+      msg += 'Added with an advisory: ' + esc(advisories.join('; ')) + '. Not blocked, for the same reason it is not '
+        + 'blocked on a single add, but worth a look. ';
     }
     if (skippedAllergy.length) {
       msg += 'Skipped ' + esc(skippedAllergy.join(', ')) + ' on a recorded allergy, which in the real system would '

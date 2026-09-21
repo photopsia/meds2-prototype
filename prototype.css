@@ -345,8 +345,13 @@ table.proto-history-table tr + tr td { border-top: 1px solid rgba(128,128,128,0.
 /* Dispense location, shown only when something is actually being supplied */
 .proto-loc { margin-top: 3px; display: block; }
 
-/* Set and PGD pickers, on the same click-to-pick pattern as the adder */
-.proto-set-list .li { display: block; }
+/* The set and PGD pickers use the stock OpenEyes adder, so the bundled
+   stylesheet does the work. It is positioned against its open button. */
+#adder-set { position: fixed; z-index: 400; }
+#adder-set .proto-empty { padding: 4px 8px; color: #666; }
+/* The stock li puts one label in the row; ours carries status glyphs too. */
+#proto-set-list li .oe-i { margin-left: 4px; }
+#proto-set-list li .oe-i.info { margin-left: 0; margin-right: 2px; }
 
 /* The long-tail selects under the route and unit button lists */
 .proto-longtail { margin-top: 8px; width: 100%; font-size: 0.8125rem; }
