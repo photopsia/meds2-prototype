@@ -63,6 +63,19 @@
         <option value="pharmacist">Pharmacist</option>
       </select>
     </label>
+    <!-- Which event the element is sitting in. An operation note knows its
+         operated eye and an examination does not, which is the whole of the
+         difference in how a side gets defaulted. -->
+    <label class="proto-role-switch">
+      In event
+      <select id="proto-host">
+        <option value="exam">Examination</option>
+        <option value="op-r">Op note, right</option>
+        <option value="op-l">Op note, left</option>
+        <option value="op-b">Op note, both</option>
+        <option value="op-none">Op note, eye not set</option>
+      </select>
+    </label>
     <label class="proto-role-switch">
       Institution
       <select id="proto-institution">
@@ -587,6 +600,7 @@
     <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
     <div class="oe-popup-content">
       <div class="alert-box patient" id="proto-setplan-lead"></div>
+      <div id="proto-setplan-side"></div>
       <div id="proto-setplan-body"></div>
       <div class="popup-actions flex-right">
         <button class="green hint" id="proto-setplan-go" type="button">Apply</button>

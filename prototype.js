@@ -158,19 +158,50 @@
   }
 
   /* Standard sets, carrying the same defaults the real medication_set_item does. */
+  /* Sets carry no side, which is faithful: `medication_set_item` has columns for
+     form, dose, unit, route, frequency, duration and the two supply fields, and
+     no laterality column at all. A set cannot know which eye it is for, so where
+     its route takes a side the side has to come from somewhere else. */
   var DRUG_SETS = [
     { id: 'SET-1', name: 'Cataract post-op', items: [
-        { drug: 'Dexamethasone',   dose: '1', unit: 'drop', freq: 'Four times daily', route: 'Eye', lat: 'Both', condition: 'hospital', location: 'TTO Pre-Pack' },
-        { drug: 'Chloramphenicol', dose: '1', unit: 'drop', freq: 'Four times daily', route: 'Eye', lat: 'Both', condition: 'hospital', location: 'TTO Pre-Pack' }
+        { drug: 'Dexamethasone',   dose: '1', unit: 'drop', freq: 'Four times daily', route: 'Eye', condition: 'hospital', location: 'TTO Pre-Pack' },
+        { drug: 'Chloramphenicol', dose: '1', unit: 'drop', freq: 'Four times daily', route: 'Eye', condition: 'hospital', location: 'TTO Pre-Pack' }
       ] },
     { id: 'SET-2', name: 'Glaucoma first line', items: [
-        { drug: 'Latanoprost',  dose: '1', unit: 'drop', freq: 'At night',     route: 'Eye', lat: 'Both', condition: 'fp10',  location: 'N/A' },
-        { drug: 'Brimonidine',  dose: '1', unit: 'drop', freq: 'Twice daily',  route: 'Eye', lat: 'Both', condition: 'fp10',  location: 'N/A' }
+        { drug: 'Latanoprost',  dose: '1', unit: 'drop', freq: 'At night',     route: 'Eye', condition: 'fp10',  location: 'N/A' },
+        { drug: 'Brimonidine',  dose: '1', unit: 'drop', freq: 'Twice daily',  route: 'Eye', condition: 'fp10',  location: 'N/A' }
       ] },
     { id: 'SET-3', name: 'Dry eye', items: [
-        { drug: 'Hypromellose', dose: '1', unit: 'drop', freq: 'Four times daily', route: 'Eye', lat: 'Both', condition: 'self', location: 'Home' }
+        { drug: 'Hypromellose', dose: '1', unit: 'drop', freq: 'Four times daily', route: 'Eye', condition: 'self', location: 'Home' }
+      ] },
+    { id: 'SET-4', name: 'Cataract post-op with cover', items: [
+        { drug: 'Dexamethasone',   dose: '1', unit: 'drop', freq: 'Four times daily', route: 'Eye',  condition: 'hospital', location: 'TTO Pre-Pack' },
+        { drug: 'Chloramphenicol', dose: '1', unit: 'drop', freq: 'Four times daily', route: 'Eye',  condition: 'hospital', location: 'TTO Pre-Pack' },
+        { drug: 'Acetazolamide',   dose: '250', unit: 'mg', freq: 'Twice daily',      route: 'Oral', duration: '3 days', condition: 'hospital', location: 'TTO Pre-Pack' }
       ] }
   ];
+
+  /* Which event the element is sitting in. An operation note knows its operated
+     eye; an examination does not. Everything about how a side is defaulted follows
+     from that one difference, so it is a first-class piece of state here. */
+  var HOSTS = {
+    exam:      { label: 'Examination',                  operatedEye: null },
+    'op-r':    { label: 'Operation note, right eye',    operatedEye: 'Right' },
+    'op-l':    { label: 'Operation note, left eye',     operatedEye: 'Left' },
+    'op-b':    { label: 'Operation note, both eyes',    operatedEye: 'Both' },
+    'op-none': { label: 'Operation note, eye not set',  operatedEye: null }
+  };
+  function host() { return HOSTS[STATE.host] || HOSTS.exam; }
+
+  /* The prototype's stand-in for `medication_route.has_laterality`. */
+  function routeTakesSide(route) { return route === 'Eye' || route === 'Intravitreal'; }
+
+  /* Two sides overlap if they could describe the same eye. Left and Right are
+     separate threads and never conflict; Both overlaps everything. */
+  function sidesOverlap(a, b) {
+    if (!a || !b) return true;
+    return a === b || a === 'Both' || b === 'Both';
+  }
 
   /* The patient's recorded diagnoses, standing in for the Diagnoses 2.0 list.
      Indication is chosen from these rather than typed, which is what keeps it
@@ -212,6 +243,9 @@
 
   var STATE = {
     institution: 'qah',
+    /* The event the element is embedded in. Only matters for whether an operated
+       eye is available to default a side from. */
+    host: 'exam',
     nextAppointment: d(21),
     user: 'prescriber',
     seq: 20,
@@ -1251,11 +1285,19 @@
       if (picked) addSet(picked.dataset.id);
       return;
     }
+    /* Changing the side changes which drugs are duplicates, so the whole plan is
+       worked out again rather than the side being remembered and applied later. */
+    var sideBtn = ev.target.closest('#proto-setplan-side label');
+    if (sideBtn) {
+      var input = sideBtn.querySelector('input');
+      if (input) { openSetPlan(pendingSetPlan.src, input.value); }
+      return;
+    }
     if (ev.target.closest('#proto-setplan-go')) {
       ev.preventDefault();
       var choices = {};
       $$('#proto-setplan-body input[type=radio]:checked').forEach(function (r) { choices[r.name] = r.value; });
-      applySetPlan(pendingSetPlan.src, pendingSetPlan.plan, choices);
+      applySetPlan(pendingSetPlan.src, pendingSetPlan.plan, choices, pendingSetPlan.side);
       return;
     }
     /* Close on the adder's own close icon, or on any click outside it. */
@@ -1402,10 +1444,19 @@
     var idx = CATALOGUE.indexOf(c);
     var cf = conflictsFor(c);
     var top = cf.length ? cf[0].tier : 0;
+    /* A drug on the record in one eye may legitimately be wanted in the other, and
+       the side is not chosen until the next screen. So dimming is only right where
+       the route cannot take a side: you cannot be on a tablet twice, but you can be
+       on a drop in each eye. The real check runs once the side is known. */
+    var maybeOtherEye = top === 1 && routeTakesSide(c.route)
+      && cf[0].entry.lat && cf[0].entry.lat !== 'Both';
+    var block = top === 1 && !maybeOtherEye;
     var flag = '';
     if (c.allergy) flag = ' <i class="oe-i allergy small no-click" title="Allergy recorded"></i>';
+    else if (maybeOtherEye) flag = ' <i class="oe-i warning small no-click" title="On the record for the '
+      + esc(cf[0].entry.lat.toLowerCase()) + ' eye. Can be added for the other eye."></i>';
     else if (top === 2 || top === 3) flag = ' <i class="oe-i warning small no-click" title="' + esc(cf[0].detail) + '"></i>';
-    return '<label' + (top === 1 ? ' class="is-on-record" title="Already on the record"' : '') + '>'
+    return '<label' + (block ? ' class="is-on-record" title="Already on the record"' : '') + '>'
       + '<input type="radio" name="proto-add-pick" value="' + idx + '">'
       + '<span class="li">' + esc(c.drug) + flag
       + '<span class="proto-opt-sub">' + esc(c.sub) + '</span></span></label>';
@@ -1480,12 +1531,18 @@
     return (a || []).filter(function (x) { return (b || []).indexOf(x) >= 0; });
   }
 
-  function conflictsFor(c, ignoreId) {
+  /* `side` is the side being proposed. Where it is known, a same-product match on
+     the other eye is not a duplicate at all: the two eyes are separate threads and
+     a patient can legitimately be on the same drop in each, on different regimens.
+     Passing no side keeps the old behaviour, which is what the single-drug adder
+     wants because it runs before a side has been chosen. */
+  function conflictsFor(c, ignoreId, side) {
     var out = [];
     STATE.entries.forEach(function (e) {
       if (e.status === 'stopped' || e.id === ignoreId) return;
       var ec = catFor(e.drug);
       if (e.drug === c.drug) {
+        if (side !== undefined && !sidesOverlap(side, e.lat)) return;
         out.push({ tier: 1, entry: e, detail: 'the same product' });
         return;
       }
@@ -1553,6 +1610,13 @@
     var c = CATALOGUE[idx];
     var conflicts = conflictsFor(c);
 
+    /* A same-product match in one named eye is not yet a conflict, because the
+       side of this new entry has not been chosen. It is raised when the side is
+       set, in the edit dialog, where it can be answered. */
+    if (conflicts.length && conflicts[0].tier === 1 && routeTakesSide(c.route)
+        && conflicts[0].entry.lat && conflicts[0].entry.lat !== 'Both') {
+      conflicts = conflicts.slice(1);
+    }
     if (conflicts.length) {
       openConflict(c, conflicts, function () { addFromCatalogue(c, true); });
       return;
@@ -1571,7 +1635,10 @@
     var e = mk({
       drug: c.drug, sub: c.sub, group: c.route === 'Eye' ? 'eye' : 'systemic',
       dose: c.unit === 'drop' ? '1' : '', unit: c.unit,
-      freq: 'Once daily', route: c.route, lat: c.route === 'Eye' ? 'Both' : '',
+      /* No side is assumed. "Both" is a clinical statement, not a safe default,
+         and guessing it here is how a patient ends up treated in an eye nobody
+         chose. The edit dialog opens straight after this and asks. */
+      freq: 'Once daily', route: c.route, lat: '',
       start: TODAY, supply: null,
       history: [ h(nowStamp(), user().name, 'Started',
         overridden ? 'Added to medication record, conflict acknowledged' : 'Added to medication record',
@@ -1992,11 +2059,34 @@
   $('#proto-edit-save').addEventListener('click', function () {
     var e = findById(editingId);
     var before = directions(e);
+    var wantRoute = btnVal('proto-edit-route');
+    var wantLat = routeTakesSide(wantRoute) ? btnVal('proto-edit-lat') : '';
+
+    /* The side is required where the route takes one, and it is asked for here
+       rather than being allowed through to fail on saving the event. This is
+       `EventMedicationUse::validateLaterality()` moved to the point of the
+       mistake instead of the end of the encounter. */
+    if (routeTakesSide(wantRoute) && !wantLat) {
+      alertBox('patient', '<strong>Which eye?</strong> ' + esc(e.drug) + ' is being given by a route that has a side, '
+        + 'so one has to be chosen. Today OpenEyes lets this through and fails on saving the examination, which can be '
+        + 'a long way from where the mistake was made.');
+      return;
+    }
+    /* Now the side is known the uniqueness rule can actually be applied. Until
+       this point a same-product match might have been the other eye. */
+    var clash = conflictsFor(catFor(e.drug), e.id, wantLat).filter(function (x) { return x.tier === 1; })[0];
+    if (clash) {
+      alertBox('patient', '<strong>Already on the record.</strong> ' + esc(e.drug) + ' is active'
+        + (clash.entry.lat ? ' for the ' + esc(clash.entry.lat.toLowerCase()) + ' eye' : '')
+        + ', which overlaps the side chosen here. Change that entry rather than creating a second one.');
+      return;
+    }
+
     e.dose = $('#proto-edit-dose').value;
     e.unit = btnVal('proto-edit-unit');
     e.freq = btnVal('proto-edit-freq');
-    e.route = btnVal('proto-edit-route');
-    e.lat = e.route === 'Eye' ? btnVal('proto-edit-lat') : '';
+    e.route = wantRoute;
+    e.lat = wantLat;
     e.start = $('#proto-edit-start').value;
     e.status = e.start > TODAY ? 'planned' : (e.status === 'held' ? 'held' : 'current');
 
@@ -2157,54 +2247,73 @@
      is already on one of its drugs, sometimes on different directions. Silently
      overwriting those is wrong, and silently skipping them is also wrong, because
      the clinician chose the set for a reason. So the overlap is resolved per drug. */
-  function planSetAdd(src) {
-    var plan = { add: [], same: [], differs: [], allergy: [] };
+  /* `side` is the side chosen for this application of the set. It applies only to
+     the items whose route takes one; a systemic drug in a post-op set stays
+     sideless however the question was answered. */
+  function planSetAdd(src, side) {
+    var plan = { add: [], same: [], differs: [], allergy: [], needsSide: false };
     src.items.forEach(function (i) {
       var cat = CATALOGUE.filter(function (c) { return c.drug === i.drug; })[0] || {};
-      if (cat.allergy) { plan.allergy.push({ item: i }); return; }
+      var takesSide = routeTakesSide(i.route);
+      if (takesSide) plan.needsSide = true;
+      var lat = takesSide ? (side || '') : '';
 
-      var cf = conflictsFor(cat);
+      if (cat.allergy) { plan.allergy.push({ item: i, lat: lat }); return; }
+
+      var cf = conflictsFor(cat, undefined, takesSide ? lat : undefined);
       var exact = cf.filter(function (x) { return x.tier === 1; })[0];
       if (!exact) {
-        plan.add.push({ item: i, cat: cat, advisory: cf.length ? cf[0] : null });
+        plan.add.push({ item: i, cat: cat, lat: lat, advisory: cf.length ? cf[0] : null });
         return;
       }
-      /* Already on it. The question is whether the set says something different. */
+      /* On it already, on a side that overlaps the one proposed. The question is
+         whether the set says anything different about how it is being taken. */
       var e = exact.entry;
-      var wanted = { dose: i.dose, unit: i.unit, freq: i.freq, route: i.route, lat: i.lat };
       var diffs = [];
       if (String(e.dose) !== String(i.dose) || e.unit !== i.unit) {
         diffs.push({ field: 'Dose', now: e.dose + ' ' + e.unit, set: i.dose + ' ' + i.unit });
       }
       if (e.freq !== i.freq) diffs.push({ field: 'Frequency', now: e.freq, set: i.freq });
-      /* Side counts as a difference. A set written for both eyes applied to a
-         patient on one is a real extension of treatment, not a formatting detail. */
-      if (i.lat && (e.lat || '') !== i.lat) diffs.push({ field: 'Side', now: e.lat || 'none', set: i.lat });
+      /* A partial side overlap is a real difference: the patient is on it in one
+         eye and the set is being applied to both. */
+      if (lat && (e.lat || '') !== lat) diffs.push({ field: 'Side', now: e.lat || 'none', set: lat });
       if (i.route && e.route !== i.route) diffs.push({ field: 'Route', now: e.route, set: i.route });
       if (i.duration && (e.duration || 'Ongoing') !== i.duration) {
         diffs.push({ field: 'Duration', now: e.duration || 'Ongoing', set: i.duration });
       }
-      if (diffs.length) plan.differs.push({ item: i, entry: e, diffs: diffs, wanted: wanted });
-      else plan.same.push({ item: i, entry: e });
+      var wanted = { dose: i.dose, unit: i.unit, freq: i.freq, route: i.route, lat: lat };
+      if (diffs.length) plan.differs.push({ item: i, entry: e, lat: lat, diffs: diffs, wanted: wanted });
+      else plan.same.push({ item: i, entry: e, lat: lat });
     });
     return plan;
   }
 
   var pendingSetPlan = null;
 
-  function openSetPlan(src, plan) {
-    pendingSetPlan = { src: src, plan: plan };
+  /* The side is chosen once for the set and the consequences are recomputed as it
+     changes, because which drugs are duplicates depends entirely on the answer.
+     Opening with a side already picked but the consequences hidden would ask the
+     user to predict them. */
+  function openSetPlan(src, side) {
+    var plan = planSetAdd(src, side);
+    pendingSetPlan = { src: src, plan: plan, side: side };
     $('#proto-setplan-title').textContent = src.name;
+    $('#proto-setplan-side').innerHTML = plan.needsSide ? sideChooserHtml(src, side) : '';
 
     var lead = [];
     if (plan.add.length) lead.push(plan.add.length + ' to add');
     if (plan.differs.length) lead.push(plan.differs.length + ' already recorded on different directions');
     if (plan.same.length) lead.push(plan.same.length + ' already recorded and unchanged');
     if (plan.allergy.length) lead.push(plan.allergy.length + ' blocked on a recorded allergy');
-    $('#proto-setplan-lead').textContent = 'This set overlaps what the patient is already on: '
-      + lead.join(', ') + '. Choose what to do with each before anything is written.';
+
+    var needSideFirst = plan.needsSide && !side;
+    $('#proto-setplan-lead').textContent = needSideFirst
+      ? 'This set contains drops, and a set never says which eye it is for. Choose a side to see what it would do.'
+      : 'What this set would do: ' + lead.join(', ') + '.';
+    $('#proto-setplan-go').disabled = needSideFirst;
 
     var html = '';
+    if (needSideFirst) { $('#proto-setplan-body').innerHTML = ''; openPopup('popup-setplan'); return; }
 
     if (plan.differs.length) {
       html += '<h4>Already recorded, on different directions</h4>'
@@ -2229,7 +2338,8 @@
     if (plan.add.length) {
       html += '<h4>Will be added</h4><ul class="proto-setplan-list">'
         + plan.add.map(function (x) {
-            return '<li>' + esc(x.item.drug) + ' &mdash; ' + esc(setDirections(x.item))
+            return '<li>' + esc(x.item.drug) + ' &mdash; ' + esc(setDirections(x.item, x.lat))
+              + (routeTakesSide(x.item.route) ? '' : ' <span class="proto-setplan-aside">no side, not an eye route</span>')
               + (x.advisory ? ' <span class="proto-tag warn">' + esc(x.advisory.detail)
                   + ' as ' + esc(x.advisory.entry.drug) + '</span>' : '')
               + '</li>';
@@ -2239,7 +2349,7 @@
     if (plan.same.length) {
       html += '<h4>Already recorded, nothing to do</h4><ul class="proto-setplan-list">'
         + plan.same.map(function (x) {
-            return '<li>' + esc(x.item.drug) + ' &mdash; already on ' + esc(setDirections(x.item)) + '</li>';
+            return '<li>' + esc(x.item.drug) + ' &mdash; already on ' + esc(setDirections(x.item, x.lat)) + '</li>';
           }).join('') + '</ul>';
     }
 
@@ -2256,6 +2366,31 @@
     openPopup('popup-setplan');
   }
 
+  function sideChooserHtml(src, side) {
+    var eye = host().operatedEye;
+    var drops = src.items.filter(function (i) { return routeTakesSide(i.route); });
+    var other = src.items.length - drops.length;
+
+    var note;
+    if (eye && side === eye) {
+      note = '<i class="oe-i info small no-click"></i> Taken from the operated eye on this operation note. '
+        + 'Change it here if the drops are not for the eye that was operated on.';
+    } else if (eye) {
+      note = '<i class="oe-i warning small no-click"></i> This operation note records the <strong>'
+        + esc(eye.toLowerCase()) + '</strong> eye. You have chosen otherwise, which is allowed and will be recorded as your choice.';
+    } else if (host().operatedEye === null && STATE.host.indexOf('op-') === 0) {
+      note = '<i class="oe-i warning small no-click"></i> This operation note has no operated eye recorded, so nothing can be defaulted.';
+    } else {
+      note = 'A set does not carry a side, so this has to be chosen. It applies to the '
+        + drops.length + ' drop' + (drops.length === 1 ? '' : 's')
+        + (other ? ', and not to the ' + other + ' drug' + (other === 1 ? '' : 's') + ' taken another way' : '') + '.';
+    }
+
+    return '<div class="proto-setplan-side"><span class="proto-strong">Which eye</span>'
+      + choiceRow('setside', [['Right', 'Right'], ['Left', 'Left'], ['Both', 'Both']], side || '')
+      + '<p class="proto-setplan-note">' + note + '</p></div>';
+  }
+
   /* Same button-list styling as the rest of the element, returned as markup
      because these rows are built before they are in the document. */
   function choiceRow(name, pairs, current) {
@@ -2266,9 +2401,9 @@
     }).join('') + '</div>';
   }
 
-  function setDirections(i) {
+  function setDirections(i, lat) {
     var bits = [i.dose + (i.unit === 'drop' ? ' drop' + (i.dose === '1' ? '' : 's') : i.unit), i.freq, i.route];
-    if (i.lat) bits.push(i.lat);
+    if (lat) bits.push(lat);
     if (i.duration) bits.push(i.duration);
     return bits.join(', ');
   }
@@ -2278,30 +2413,44 @@
   function addSet(setId) {
     var pgd = setMode === 'pgd';
     var src = (pgd ? myPgds() : DRUG_SETS).filter(function (s) { return s.id === setId; })[0];
-    var plan = planSetAdd(src);
 
-    /* Nothing to resolve: no drug the patient is already on differs from the set,
-       and nothing is blocked. Just do it, because a dialog that only ever says
-       "yes, that worked" is a dialog people stop reading. */
-    if (!plan.differs.length && !plan.allergy.length) { applySetPlan(src, plan, {}); return; }
-    openSetPlan(src, plan);
+    /* Where the host event knows an operated eye, that is the opening answer. It
+       is a default, not a decision: it is shown, labelled with where it came from,
+       and can be changed before anything is written. Today's operation note applies
+       it silently and after the fact, which is the behaviour this replaces. */
+    var side = host().operatedEye || null;
+    var plan = planSetAdd(src, side);
+
+    /* Nothing to resolve: nobody has to be asked a side, nothing differs from what
+       is recorded, nothing is blocked. Just do it, because a dialog that only ever
+       says "yes, that worked" is a dialog people stop reading. */
+    if (!plan.needsSide && !plan.differs.length && !plan.allergy.length) {
+      applySetPlan(src, plan, {}, null); return;
+    }
+    openSetPlan(src, side);
   }
 
   /* choices maps the index of a differing drug to 'keep' or 'take'. */
-  function applySetPlan(src, plan, choices) {
+  function applySetPlan(src, plan, choices, side) {
     var pgd = setMode === 'pgd';
     var added = [], changed = [], kept = [], advisories = [];
+    /* Where the side came from is worth keeping. If the operated eye on the note
+       is later corrected, this is what says which drugs inherited the old one. */
+    var sideSource = !side ? null
+      : (side === host().operatedEye ? 'operated eye on this operation note' : user().name);
 
     plan.add.forEach(function (x) {
       var i = x.item, cat = x.cat;
       var e = mk({
         drug: i.drug, sub: cat.sub || '', group: cat.group || 'eye',
-        dose: i.dose, unit: i.unit, freq: i.freq, route: i.route, lat: i.lat,
+        dose: i.dose, unit: i.unit, freq: i.freq, route: i.route, lat: x.lat,
         duration: i.duration || 'Ongoing',
         start: TODAY, supply: pgd ? 'hospital' : (i.responsibility || null),
         indication: cat.sugg || null,
         history: [ h(nowStamp(), user().name, 'Started',
-          'Added from ' + (pgd ? 'PGD ' : 'set ') + src.name, 'Medication record') ]
+          'Added from ' + (pgd ? 'PGD ' : 'set ') + src.name
+          + (x.lat && sideSource ? '. Side ' + x.lat.toLowerCase() + ', from ' + sideSource : ''),
+          'Medication record') ]
       });
       if (pgd) e.pgd = src.name;
       STATE.entries.push(e);
@@ -2348,6 +2497,18 @@
     if (pgd) msg += 'Supply is set to the protocol, and each drug is attributed to you individually.';
     alertBox(added.length || changed.length ? 'success' : 'patient', msg);
   }
+
+  $('#proto-host').addEventListener('change', function () {
+    STATE.host = this.value;
+    render();
+    var eye = host().operatedEye;
+    alertBox('', 'Now in <strong>' + esc(host().label) + '</strong>. '
+      + (eye
+          ? 'Adding a set that contains drops will open with <strong>' + esc(eye.toLowerCase())
+            + '</strong> already chosen, taken from the operated eye, and say so. It is a default and can be changed.'
+          : 'Nothing knows which eye here, so adding a set that contains drops will ask, with nothing pre-selected. '
+            + 'A set carries a route but never a side.'));
+  });
 
   $('#proto-institution').addEventListener('change', function () {
     STATE.institution = this.value;
