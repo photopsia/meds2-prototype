@@ -162,22 +162,26 @@
      form, dose, unit, route, frequency, duration and the two supply fields, and
      no laterality column at all. A set cannot know which eye it is for, so where
      its route takes a side the side has to come from somewhere else. */
+  /* Durations are on the items because `medication_set_item` has
+     `default_duration_id`. A post-op set that did not say how long its drops run
+     for would not be much of a set, and the difference between the set's course
+     and the patient's is one of the things most worth catching. */
   var DRUG_SETS = [
     { id: 'SET-1', name: 'Cataract post-op', items: [
-        { drug: 'Dexamethasone',   dose: '1', unit: 'drop', freq: 'Four times daily', route: 'Eye', condition: 'hospital', location: 'TTO Pre-Pack' },
-        { drug: 'Chloramphenicol', dose: '1', unit: 'drop', freq: 'Four times daily', route: 'Eye', condition: 'hospital', location: 'TTO Pre-Pack' }
+        { drug: 'Dexamethasone',   dose: '1', unit: 'drop', freq: 'Four times daily', route: 'Eye', duration: '1 month', condition: 'hospital', location: 'TTO Pre-Pack' },
+        { drug: 'Chloramphenicol', dose: '1', unit: 'drop', freq: 'Four times daily', route: 'Eye', duration: '7 days',  condition: 'hospital', location: 'TTO Pre-Pack' }
       ] },
     { id: 'SET-2', name: 'Glaucoma first line', items: [
-        { drug: 'Latanoprost',  dose: '1', unit: 'drop', freq: 'At night',     route: 'Eye', condition: 'fp10',  location: 'N/A' },
-        { drug: 'Brimonidine',  dose: '1', unit: 'drop', freq: 'Twice daily',  route: 'Eye', condition: 'fp10',  location: 'N/A' }
+        { drug: 'Latanoprost',  dose: '1', unit: 'drop', freq: 'At night',     route: 'Eye', duration: 'Ongoing', condition: 'fp10',  location: 'N/A' },
+        { drug: 'Brimonidine',  dose: '1', unit: 'drop', freq: 'Twice daily',  route: 'Eye', duration: 'Ongoing', condition: 'fp10',  location: 'N/A' }
       ] },
     { id: 'SET-3', name: 'Dry eye', items: [
-        { drug: 'Hypromellose', dose: '1', unit: 'drop', freq: 'Four times daily', route: 'Eye', condition: 'self', location: 'Home' }
+        { drug: 'Hypromellose', dose: '1', unit: 'drop', freq: 'Four times daily', route: 'Eye', duration: 'Ongoing', condition: 'self', location: 'Home' }
       ] },
     { id: 'SET-4', name: 'Cataract post-op with cover', items: [
-        { drug: 'Dexamethasone',   dose: '1', unit: 'drop', freq: 'Four times daily', route: 'Eye',  condition: 'hospital', location: 'TTO Pre-Pack' },
-        { drug: 'Chloramphenicol', dose: '1', unit: 'drop', freq: 'Four times daily', route: 'Eye',  condition: 'hospital', location: 'TTO Pre-Pack' },
-        { drug: 'Acetazolamide',   dose: '250', unit: 'mg', freq: 'Twice daily',      route: 'Oral', duration: '3 days', condition: 'hospital', location: 'TTO Pre-Pack' }
+        { drug: 'Dexamethasone',   dose: '1', unit: 'drop', freq: 'Four times daily', route: 'Eye',  duration: '1 month', condition: 'hospital', location: 'TTO Pre-Pack' },
+        { drug: 'Chloramphenicol', dose: '1', unit: 'drop', freq: 'Four times daily', route: 'Eye',  duration: '7 days',  condition: 'hospital', location: 'TTO Pre-Pack' },
+        { drug: 'Acetazolamide',   dose: '250', unit: 'mg', freq: 'Twice daily',      route: 'Oral', duration: '3 days',  condition: 'hospital', location: 'TTO Pre-Pack' }
       ] }
   ];
 
@@ -1700,8 +1704,11 @@
   }
 
   var ROUTES = ['Eye', 'Oral', 'Intravitreal', 'Topical', 'Subconjunctival', 'Subcutaneous', 'Intravenous', 'Inhalation'];
+  /* No "n/a". Where the route takes a side, n/a is not a clinical answer and
+     offering it invites the invalid state that today's system then catches on
+     saving the whole event. Where the route takes no side the control is not
+     shown at all, so there is nothing for n/a to mean there either. */
   var LATERALITIES = [
-    { value: '',      label: 'n/a' },
     { value: 'Right', label: 'Right' },
     { value: 'Left',  label: 'Left' },
     { value: 'Both',  label: 'Right and Left' }
@@ -1748,8 +1755,20 @@
 
   /* ---- edit ---- */
 
+  /* True while the side showing in the dialog is the host event's suggestion
+     rather than something the user chose. Cleared as soon as they touch it. */
+  var sideFromHost = false;
+
   function openEdit(e) {
     editingId = e.id;
+    /* A drug added inside an operation note opens with the operated eye already
+       chosen, marked as coming from the note. Only on a new entry: an existing
+       drug's side is a recorded fact and is not overwritten by context. */
+    sideFromHost = false;
+    if (!e.lat && routeTakesSide(e.route) && host().operatedEye && e.history.length <= 1) {
+      e.lat = host().operatedEye;
+      sideFromHost = true;
+    }
     $('#proto-edit-title').innerHTML = latIcon(e) + ' ' + esc(e.drug) + ' <span class="fade">' + esc(e.sub) + '</span>';
 
     btnList('proto-edit-route', withLongTail(ROUTES, e.route), e.route);
@@ -2019,18 +2038,31 @@
      route and not a free choice. Switching to Oral does not silently keep a
      side on the record. */
   function syncLaterality() {
-    var eye = btnVal('proto-edit-route') === 'Eye';
-    $$('#proto-edit-lat input').forEach(function (i) { i.disabled = !eye; });
-    $('#proto-edit-lat').classList.toggle('is-disabled', !eye);
-    if (!eye) {
-      clearBtns('proto-edit-lat');
-      var na = $('#proto-edit-lat input[value=""]');
-      if (na) na.checked = true;
-    }
+    var takes = routeTakesSide(btnVal('proto-edit-route'));
+    /* Hidden rather than disabled. A greyed-out Right and Left under an oral
+       drug is a question the user has to read and dismiss; absence says the
+       same thing and says it faster. */
+    $('#proto-edit-lat-wrap').hidden = !takes;
+    if (!takes) clearBtns('proto-edit-lat');
+    renderSideHint();
+  }
+
+  /* Where the host event supplied the side, say so, and stop saying it the
+     moment the user picks for themselves: after that it is their answer. */
+  function renderSideHint() {
+    var hint = $('#proto-edit-lat-hint');
+    var eye = host().operatedEye;
+    var show = !$('#proto-edit-lat-wrap').hidden && eye && sideFromHost && btnVal('proto-edit-lat') === eye;
+    hint.hidden = !show;
+    $('#proto-edit-lat').classList.toggle('from-host', !!show);
+    if (show) hint.innerHTML = '<i class="oe-i info small no-click"></i> Operated eye, from this operation note. Change it if that is not right.';
   }
 
   document.addEventListener('change', function (ev) {
-    if (ev.target.closest && ev.target.closest('#proto-edit-route')) syncLaterality();
+    if (!ev.target.closest) return;
+    if (ev.target.closest('#proto-edit-route')) syncLaterality();
+    /* Touching the side makes it the user's answer, so the provenance mark goes. */
+    if (ev.target.closest('#proto-edit-lat')) { sideFromHost = false; renderSideHint(); }
   });
 
   /* Picking from the long tail adds that value to the buttons and selects it, so
@@ -2082,11 +2114,19 @@
       return;
     }
 
+    var sideChanged = e.lat !== wantLat;
     e.dose = $('#proto-edit-dose').value;
     e.unit = btnVal('proto-edit-unit');
     e.freq = btnVal('proto-edit-freq');
     e.route = wantRoute;
     e.lat = wantLat;
+    /* Where the side was the host event's suggestion and was accepted rather than
+       chosen, the history says so. Same provenance the set add records. */
+    if (wantLat && sideFromHost && !sideChanged) {
+      e.history.push(h(nowStamp(), user().name, 'Side taken from the operation note',
+        wantLat + ', the operated eye', 'Medication record'));
+    }
+    sideFromHost = false;
     e.start = $('#proto-edit-start').value;
     e.status = e.start > TODAY ? 'planned' : (e.status === 'held' ? 'held' : 'current');
 
@@ -2278,10 +2318,21 @@
          eye and the set is being applied to both. */
       if (lat && (e.lat || '') !== lat) diffs.push({ field: 'Side', now: e.lat || 'none', set: lat });
       if (i.route && e.route !== i.route) diffs.push({ field: 'Route', now: e.route, set: i.route });
-      if (i.duration && (e.duration || 'Ongoing') !== i.duration) {
-        diffs.push({ field: 'Duration', now: e.duration || 'Ongoing', set: i.duration });
+      /* Compared on the stop date rather than the duration, because the date is
+         what is stored and the duration is only how it was arrived at. A patient
+         two weeks into a four-week course and a set that says four weeks agree on
+         the duration and disagree by two weeks on when the drug stops, which is
+         the difference that matters. */
+      var setEnd = i.duration ? courseEnd(TODAY, i.duration, []) : null;
+      if (i.duration && setEnd !== (e.end || '')) {
+        diffs.push({
+          field: 'Course',
+          now: e.end ? 'stops ' + fmtDate(e.end) : 'ongoing',
+          set: (setEnd ? 'stops ' + fmtDate(setEnd) : 'ongoing') + ' (' + i.duration + ')'
+        });
       }
-      var wanted = { dose: i.dose, unit: i.unit, freq: i.freq, route: i.route, lat: lat };
+      var wanted = { dose: i.dose, unit: i.unit, freq: i.freq, route: i.route, lat: lat,
+                     duration: i.duration || null, end: setEnd };
       if (diffs.length) plan.differs.push({ item: i, entry: e, lat: lat, diffs: diffs, wanted: wanted });
       else plan.same.push({ item: i, entry: e, lat: lat });
     });
@@ -2444,7 +2495,7 @@
       var e = mk({
         drug: i.drug, sub: cat.sub || '', group: cat.group || 'eye',
         dose: i.dose, unit: i.unit, freq: i.freq, route: i.route, lat: x.lat,
-        duration: i.duration || 'Ongoing',
+        duration: i.duration || 'Ongoing', end: courseEnd(TODAY, i.duration || 'Ongoing', []),
         start: TODAY, supply: pgd ? 'hospital' : (i.responsibility || null),
         indication: cat.sugg || null,
         history: [ h(nowStamp(), user().name, 'Started',
@@ -2467,7 +2518,10 @@
       e.dose = x.wanted.dose; e.unit = x.wanted.unit;
       e.freq = x.wanted.freq; e.route = x.wanted.route;
       if (x.wanted.lat) e.lat = x.wanted.lat;
-      if (x.item.duration) { e.duration = x.item.duration; e.end = courseEnd(e.start, e.duration, e.taper); }
+      /* The course restarts from today, not from the original start date. Taking
+         a set's four weeks means four weeks from now, which is the same rule the
+         duration picker follows everywhere else. */
+      if (x.wanted.duration) { e.duration = x.wanted.duration; e.end = x.wanted.end; }
       e.history.push(h(nowStamp(), user().name, 'Changed',
         directions(e) + ' (from ' + before + ', taken from ' + src.name + ')', 'Medication record'));
       flagDivergence(e);

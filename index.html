@@ -474,9 +474,12 @@
           <fieldset class="btn-list" id="proto-edit-route"></fieldset>
           <select id="proto-edit-route-all" class="proto-longtail"><option value="">&hellip; all routes</option></select>
         </div>
-        <div>
+        <!-- Hidden outright where the route takes no side, rather than shown
+             greyed out. There is no "n/a": see LATERALITIES in prototype.js. -->
+        <div id="proto-edit-lat-wrap">
           <h4>Laterality</h4>
           <fieldset class="btn-list" id="proto-edit-lat"></fieldset>
+          <div class="proto-side-hint" id="proto-edit-lat-hint" hidden></div>
         </div>
         <div class="proto-dose-col">
           <h4>Dose</h4>
