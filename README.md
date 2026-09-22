@@ -29,8 +29,8 @@ then open <http://localhost:8777/>.
 - Set a duration from the Change dialog and watch what it does to the stop date, then edit the date by hand.
 - Change a dose on a drug that is already on an issued order.
 - Switch role in the top right, from prescriber to nurse, to see prescribing rights change.
-- Generate an order, print it, then try to edit it.
-- Watch the unsaved-changes bar. Nothing is in the record until the examination is saved.
+- Sign an order and save the examination to generate it, print it, then try to edit it.
+- Watch the unsaved-changes bar. Nothing is in the record, and no prescription exists, until the examination is saved. Sign the element and then change a dose: the signature comes off.
 
 ## Keeping the vendored assets current
 
@@ -46,4 +46,4 @@ cp $SRC/img/oe-i-e-76x76-6.4.12.png vendor/oe/img/
 
 ## Where the reasoning lives
 
-The prototype is chapter 7 of the scoping package in the parent directory. `06-prototype.md` walks through it screen by screen and says why each decision was taken; `01-design-model.md` is the model it implements.
+The prototype is chapter 4 of the scoping package in the parent directory. `06-prototype.md` walks through it screen by screen and says why each decision was taken; `01-design-model.md` is the model it implements.

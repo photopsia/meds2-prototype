@@ -161,7 +161,8 @@ tr.proto-row.just-changed td { animation: proto-flash 1.6s ease-out; }
   to { background: transparent; }
 }
 
-.proto-supply select { width: 100%; font-size: 0.75rem; }
+.proto-supply select,
+.proto-supply-select { width: 100%; font-size: 0.75rem; max-width: 100%; }
 .proto-supply-value { font-size: 0.75rem; }
 /* The collapse header count. Small, bold and offset, as the sidebar group
    counts are, so it reads as a quantity rather than part of the label. */
@@ -173,7 +174,17 @@ tr.proto-row.just-changed td { animation: proto-flash 1.6s ease-out; }
 .proto-supply-value.is-unset { opacity: 0.45; }
 /* Nobody has set this; the row is showing the default for its duration. Muted
    rather than annotated, because a "(default)" suffix on most rows is noise. */
-.proto-supply-value.is-derived { opacity: 0.6; font-style: italic; }
+.proto-supply-value.is-derived,
+.proto-supply-select.is-derived { opacity: 0.6; font-style: italic; }
+
+.proto-add-from {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  margin-right: 8px;
+}
+.proto-add-from select { font-size: 0.8125rem; max-width: 14rem; }
 
 /* All four medication tables share one column grid so the eye, systemic and
    stopped lists read as one record rather than three tables that happen to be
@@ -315,16 +326,18 @@ tr.proto-diverged-row td { background: rgba(184,113,44,0.12); }
 
 /* Pharmacy signatory chips, as the worklist renders them */
 .proto-worklist-line {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
   margin-top: 10px; padding-top: 8px; font-size: 0.75rem;
   border-top: 1px solid rgba(128,128,128,0.25);
 }
-.proto-worklist-label { opacity: 0.7; margin-right: 6px; }
+.proto-worklist-label { opacity: 0.7; margin-right: 2px; }
 .proto-sig {
-  display: inline-block; font-size: 0.6875rem; padding: 2px 6px; border-radius: 2px; margin-right: 4px;
+  display: inline-block; font-size: 0.6875rem; padding: 2px 6px; border-radius: 2px;
+  white-space: nowrap;
 }
 .proto-sig.signed { background: #2f6f4f; color: #fff; }
 .proto-sig.unsigned { background: rgba(128,128,128,0.3); color: inherit; opacity: 0.8; }
-.proto-worklist-state { display: block; margin-top: 6px; opacity: 0.75; }
+.proto-worklist-state { flex: 1 1 100%; margin-top: 4px; opacity: 0.75; }
 
 .proto-notes { margin-top: 10px; font-size: 0.75rem; }
 .proto-notes .proto-field { display: block; width: 100%; }
@@ -430,6 +443,34 @@ html.theme-light .proto-rx-bar { background: rgba(0,0,0,0.05); }
 .proto-pin-wrap.is-draft { background: #55595f; }
 .proto-rx-pin { width: 74px; text-align: center; letter-spacing: 3px; }
 .proto-pin-label { font-weight: bold; color: #fff; padding: 0 8px; cursor: pointer; }
+/* The draft option is a choice, not an action, so it reads as a box that is on
+   or off rather than as a button that does something when pressed. Grey until
+   it is picked, blue once it is, which is the same on/off language the rest of
+   OpenEyes uses for a selected option. */
+.proto-rx-opt {
+  background: #55595f; color: #fff; border: 1px solid #6d7278; border-radius: 3px;
+  padding: 4px 10px; font-size: 0.8125rem; cursor: pointer;
+}
+.proto-rx-opt.selected,
+.proto-rx-opt.is-on { background: #0075b0; border-color: #4ba3d3; font-weight: bold; }
+.proto-rx-opt[hidden] { display: none; }
+
+/* What replaces the PIN field once it has been typed: the signature, the same
+   green tick and "signed at" line the e-sign widget uses elsewhere, and a way
+   back out. */
+.proto-rx-signed { display: flex; align-items: center; gap: 8px; }
+.proto-rx-signed[hidden] { display: none; }
+.proto-sig-mark { width: 76px; height: 24px; color: #cfe3f5; flex: 0 0 auto; }
+html.theme-light .proto-sig-mark { color: #23527c; }
+.proto-sig-meta { white-space: nowrap; }
+.proto-sig-clear { background: none; border: 0; color: inherit; opacity: 0.7; cursor: pointer;
+  text-decoration: underline; font-size: 0.8125rem; padding: 0; }
+
+/* The line that says why there is no PIN field, or what the save will do with
+   what has been chosen. Full width so it sits under the bar's controls rather
+   than squeezing them. */
+.proto-rx-note { flex: 1 1 100%; opacity: 0.8; }
+.proto-rx-note[hidden] { display: none; }
 
 /* ---- row marks ---- */
 .proto-rx-ref { white-space: nowrap; opacity: 0.8; }
@@ -487,3 +528,86 @@ table.proto-meds .highlighter { margin-right: 4px; }
 
 .btn-list.is-disabled { opacity: 0.4; pointer-events: none; }
 .proto-quick-end .highlight.as-button { margin: 0 2px 2px 0; }
+
+/* The adder's running selection, and the hint beside the two commit buttons.
+   Which button is pressed is what sets source, eye relevance and responsibility
+   to supply, so the hint states the consequence rather than leaving it implied. */
+.proto-selected { margin-top: 10px; }
+.proto-selected h4 { margin-bottom: 4px; }
+.proto-sel-row { padding: 2px 0; cursor: pointer; font-size: 0.94em; }
+.proto-sel-row:hover { color: #a00; }
+.proto-add-hint { color: #666; font-size: 0.9em; margin-right: auto; text-align: left; max-width: 52em; }
+.popup-actions.flex-right { display: flex; align-items: center; gap: 8px; }
+
+/* Future-dated rows. Per the DA review: make them as different as possible from
+   current medication. Grey and italic throughout, laterality icons included. */
+.proto-row.is-planned td { color: #767676; font-style: italic; }
+.proto-row.is-planned .oe-lat { opacity: 0.45; filter: grayscale(1); }
+.proto-row.is-planned .proto-drug { font-style: italic; }
+
+/* ---------------------------------------------- the prescription event screen */
+
+/* Picking one order and opening it the way it sits on the timeline, rather than
+   reading a list of all of them. */
+.proto-rx-eventbar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 12px;
+  margin: 0 0 10px; padding: 7px 10px; font-size: 0.8125rem;
+  background: rgba(255,255,255,0.07);
+}
+html.theme-light .proto-rx-eventbar { background: rgba(0,0,0,0.05); }
+.proto-rx-eventbar select { max-width: 460px; }
+.proto-rx-modebtns { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.proto-rx-modebtn {
+  background: #55595f; color: #fff; border: 1px solid #6d7278; border-radius: 3px;
+  padding: 3px 10px; font-size: 0.8125rem; cursor: pointer;
+}
+.proto-rx-modebtn.is-on { background: #0075b0; border-color: #4ba3d3; font-weight: bold; }
+.proto-rx-onlybox { display: flex; align-items: center; gap: 5px; opacity: 0.85; }
+
+/* The element, once it is inside a prescription event. It is the same element,
+   so it is marked rather than restyled: a tint and a rule down the side say you
+   are editing the record from inside an order. */
+#proto-meds-element.is-rx-edit { border-left: 3px solid #0075b0; }
+.proto-el-sub { display: block; font-weight: normal; opacity: 0.8; margin-top: 2px; }
+#proto-meds-element.is-rx-edit .proto-el-sub { max-width: 780px; }
+
+/* A row that is on the order being edited, and one whose directions have moved
+   away from what that order holds. The mark is on the row because that is where
+   the change was made and where it would be undone. */
+tr.proto-rx-onorder td:first-child { box-shadow: inset 3px 0 0 #0075b0; }
+tr.proto-rx-diffrow td { background: rgba(184,113,44,0.12); }
+.proto-rx-diffmark {
+  display: block; margin-top: 2px; font-size: 0.6875rem; color: #d08a3c;
+}
+html.theme-light .proto-rx-diffmark { color: #8a5a15; }
+
+/* The reconciliation table: two versions side by side, decision on the row. */
+.proto-rx-edit-table td:nth-child(2) { opacity: 0.85; }
+.proto-rx-off { opacity: 0.7; font-style: italic; }
+.proto-rx-same { opacity: 0.55; font-size: 0.75rem; }
+tr.proto-rx-offrow td { opacity: 0.6; }
+tr.proto-rx-newrow td { background: rgba(12,121,21,0.10); }
+
+/* The signing bar on the order itself, rather than on the element, because
+   inside an event there is one thing to sign and it is the order. */
+.proto-rx-eventsign { margin-top: 12px; border-left-color: #0075b0; }
+.proto-rx-eventsign .proto-rx-note { flex: 1 1 100%; }
+
+/* Which thread of a drug you are reading. A drug can run in each eye at once and
+   can have earlier courses that were stopped, so the history names the thread it
+   is showing and offers the others rather than merging them into one list. */
+.proto-thread-pick { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 4px; }
+.proto-thread-pick .proto-thread-btn {
+  background: #55595f; color: #fff; border: 1px solid #6d7278; border-radius: 3px;
+  padding: 3px 10px; font-size: 0.8125rem; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.proto-thread-pick .proto-thread-btn.is-on { background: #0075b0; border-color: #4ba3d3; font-weight: bold; }
+.proto-thread-note { font-size: 0.8125rem; opacity: 0.8; margin: 0 0 8px; }
+
+/* Held for the operation, seen from inside the operation note. Marked apart from
+   the ordinary awaiting band because it is the one thing on this screen that has
+   to be answered before the note is signed. */
+.proto-surgery-band { border-left: 4px solid #d17a1d; }
+.proto-surgery-acts { display: block; margin-top: 4px; }
+.proto-surgery-acts .proto-btn-confirm { margin-right: 4px; }

@@ -83,14 +83,6 @@
         <option value="gosport">Gosport</option>
       </select>
     </label>
-    <label class="proto-role-switch">
-      Next appt
-      <!-- The booked option's value and label are filled in from today at load. -->
-      <select id="proto-appt">
-        <option value="" id="proto-appt-booked">Booked</option>
-        <option value="">Not booked</option>
-      </select>
-    </label>
   </div>
 </nav>
 
@@ -100,6 +92,8 @@
     <strong>Meds 2.0 prototype.</strong> Illustrative only, no database behind it. <strong>What to try:</strong>
     <span id="proto-guide-text"></span>
   </div>
+
+  <div id="proto-alerts"></div>
 
   <!-- ============================= MEDICATION RECORD ============================= -->
   <div class="proto-view" id="view-record">
@@ -115,9 +109,9 @@
       </span>
     </div>
 
-    <div id="proto-alerts"></div>
     <div id="proto-reconcile"></div>
 
+    <div id="proto-record-element-slot">
     <section class="element edit" id="proto-meds-element">
       <header class="element-header">
         <h3 class="element-title">Medications</h3>
@@ -126,12 +120,14 @@
         <div class="proto-rx-bar" id="proto-rx-bar-top" hidden>
           <div class="proto-rx-bar-sel"><span class="proto-rx-count"></span> <span class="proto-rx-names"></span></div>
           <fieldset class="proto-rx-forms"></fieldset>
-          <label class="highlight inline proto-rx-draft"><input type="checkbox" class="proto-draft-cb">Save as draft prescription</label>
+          <button type="button" class="proto-rx-opt" data-rx-opt="draft" aria-pressed="false">Save as draft prescription</button>
           <span class="proto-pin-wrap">
             <i class="oe-i padlock small no-click"></i>
             <input type="password" class="proto-rx-pin" maxlength="6" inputmode="numeric" placeholder="****" autocomplete="off">
             <span class="proto-pin-label">Sign by PIN</span>
           </span>
+          <span class="proto-rx-signed" hidden></span>
+          <div class="proto-rx-note" hidden></div>
         </div>
 
         <div class="proto-group" id="group-eye">
@@ -233,12 +229,14 @@
         <div class="proto-rx-bar" id="proto-rx-bar-bottom" hidden>
           <div class="proto-rx-bar-sel"><span class="proto-rx-count"></span> <span class="proto-rx-names"></span></div>
           <fieldset class="proto-rx-forms"></fieldset>
-          <label class="highlight inline proto-rx-draft"><input type="checkbox" class="proto-draft-cb">Save as draft prescription</label>
+          <button type="button" class="proto-rx-opt" data-rx-opt="draft" aria-pressed="false">Save as draft prescription</button>
           <span class="proto-pin-wrap">
             <i class="oe-i padlock small no-click"></i>
             <input type="password" class="proto-rx-pin" maxlength="6" inputmode="numeric" placeholder="****" autocomplete="off">
             <span class="proto-pin-label">Sign by PIN</span>
           </span>
+          <span class="proto-rx-signed" hidden></span>
+          <div class="proto-rx-note" hidden></div>
         </div>
 
         <div class="proto-element-footer">
@@ -251,6 +249,7 @@
         </div>
       </div>
     </section>
+    </div>
 
   </div>
 
@@ -258,9 +257,27 @@
   <div class="proto-view" id="view-artefacts" hidden>
     <h2 class="event-title">Prescriptions</h2>
     <div class="proto-subtitle">Supply orders derived from the medication record, fixed at signature.
-      <strong>This tab is a reviewer's list across events, not one screen.</strong> In the real thing each order
-      below is its own prescription event on the patient's timeline, opened on its own, with the Medications
-      element at the top of it. One prescriber per order, one order per event.</div>
+      Each order is its own prescription event on the patient's timeline. Pick one below to open it as that
+      event, in view mode or in edit mode with the Medications element inside it, or list them all the way a
+      reviewer would see them across the timeline.</div>
+
+    <div class="proto-rx-eventbar">
+      <label class="proto-field inline">Prescription event
+        <select id="proto-rx-pick"></select>
+      </label>
+      <span class="proto-rx-modebtns" id="proto-rx-modebtns"></span>
+    </div>
+
+    <div class="proto-commit-bar" id="proto-rx-commit-bar">
+      <span id="proto-rx-commit-text"></span>
+      <span class="proto-commit-actions">
+        <button class="button" id="proto-rx-commit-discard" type="button">Discard</button>
+        <button class="button green" id="proto-rx-commit-save" type="button">Save prescription</button>
+      </span>
+    </div>
+
+    <div id="proto-rx-event"></div>
+    <div id="proto-rx-element-slot"></div>
     <div id="proto-artefact-list"></div>
   </div>
 
@@ -282,15 +299,15 @@
               </tr>
               <tr>
                 <td><strong>2. Supply responsibility</strong></td>
-                <td>Who we are relying on to get this drug to the patient from now on: Hospital, GP, Patient, or blank. An assignment we can make, not a supply we can observe.</td>
-                <td>The Responsibility to supply column. It reads as a label, is changed in the Change dialog, and moves on its own when an order transfers responsibility.</td>
+                <td>Who we are relying on to get this drug to the patient from now on: Hospital, GP, Patient, Other care provider, or blank. An assignment we can make, not a supply we can observe.</td>
+                <td>The Responsibility to supply column. Editable inline on the element. Issuing a prescription does not change it, and it does not stop you issuing one.</td>
                 <td><code>supply_responsibility</code> on the entry. The dispense condition is <em>not</em> here: it belongs to the order</td>
               </tr>
               <tr>
                 <td><strong>3. Generated artefact</strong></td>
                 <td>The prescription itself: a single dispensable order, signed by one prescriber, fixed at <em>signature</em> and released at <em>issue</em> (printed, or pharmacy has begun signing).</td>
-                <td>The Prescriptions tab. An unsigned draft projects the record; signing snapshots it. Reprinting or reissuing never edits the record.</td>
-                <td><code>medications_supply_artefact</code> with lifecycle state, <code>items_signed</code> written at signature, and one prescriber signature. Items in <code>medications_supply_artefact_item</code>, carrying the dispense condition and location</td>
+                <td>The Prescriptions tab. An unsigned draft holds what was asked for; signing snapshots what the record says then. Reprinting or reissuing never edits the record.</td>
+                <td><code>medications_supply_artefact</code> with lifecycle state, <code>items_requested</code> written when a draft is saved, <code>items_signed</code> written at signature, and one prescriber signature. Items in <code>medications_supply_artefact_item</code>, carrying the dispense condition and location</td>
               </tr>
             </tbody>
           </table>
@@ -313,12 +330,17 @@
               <tr>
                 <td>Prescription decoupled from record</td>
                 <td>Editing a prescription silently changing the clinical record, and vice versa</td>
-                <td>Save an order as a draft, change a dose and watch the draft follow. Sign it, then change the dose again: the order keeps what was signed and reports the divergence.</td>
+                <td>Pick the draft box, save the examination, change a dose, then open the draft: it shows what was asked for beside what the record now says, row by row. Sign it and change the dose again: the order keeps what was signed and reports the divergence.</td>
+              </tr>
+              <tr>
+                <td>Prepared by one person, signed by another</td>
+                <td>A nurse who cannot prescribe has no way to ask for one, so the request goes on paper or is lost</td>
+                <td>Switch the role to the nurse. Every row still has an order toggle, and the bar offers her the draft box rather than a PIN. Pick it, save the examination, switch back to a prescriber, change a dose, and open the request: it is shown beside the record with Keep and Restore on the row that moved.</td>
               </tr>
               <tr>
                 <td>Frozen at signature, released at issue</td>
                 <td>Printed and dispensed prescriptions being edited after the fact, while a forgotten drug forces a duplicate</td>
-                <td>Amend a draft freely. Once signed, the order stops following the record, and amending means voiding the signature and signing again, which keeps the same order number. After issue there is no edit and no re-sign, only cancel and reissue, which stay linked.</td>
+                <td>Amend a draft freely; saving rewrites the request and keeps the version it replaced. Once signed, the order stops following the record, and amending means editing it and signing again, which keeps the same order number. After issue there is no edit and no re-sign, only cancel and reissue, which stay linked.</td>
               </tr>
               <tr>
                 <td>Divergence is flagged, not applied</td>
@@ -328,7 +350,7 @@
               <tr>
                 <td>One prescriber per artefact</td>
                 <td>Ambiguity over who is legally responsible for a prescription</td>
-                <td>Switch role to Nurse. The Hospital prescription and FP10 buttons are gone; only Supply under PGD remains, and only for drugs her protocols cover.</td>
+                <td>Switch role to Nurse. Supply under PGD is offered with a PIN, and only for drugs her protocols cover. The hospital and FP10 forms are still listed, because she can ask for those, but on them there is no PIN, only the draft box.</td>
               </tr>
               <tr>
                 <td>Future-dated medications</td>
@@ -346,9 +368,9 @@
                 <td>Change a dose. The bar at the top counts unsaved changes and the row is marked. Save, and the marker becomes "changed at this visit". Discard, and the record reverts.</td>
               </tr>
               <tr>
-                <td>Ordering commits the record first</td>
-                <td>Printing cannot be undone by cancelling a form, so an order must never be generated from changes that exist only in a browser</td>
-                <td>Change a dose without saving, then press Hospital prescription. The record is committed as part of creating the order.</td>
+                <td>The save generates the order</td>
+                <td>An order that exists before the event is saved can outlive an examination that was abandoned, and can be printed from changes that exist only in a browser</td>
+                <td>Change a dose without saving, then sign the element. Nothing is created: the bar at the top says a prescription is waiting. Save, and the record commits and the order is generated from it. Discard instead, and neither exists. Edit anything while it is signed and the signature comes off.</td>
               </tr>
               <tr>
                 <td>Supply responsibility moves at issue</td>
@@ -358,11 +380,11 @@
               <tr>
                 <td>PIN signs without a button</td>
                 <td>An extra click on every prescription, and an interaction that does not match every other PIN field in OpenEyes</td>
-                <td>Press Hospital prescription. The PIN field has focus; type any six digits and the order exists.</td>
+                <td>Toggle a drug and type any six digits into the PIN field. It signs the element as soon as the sixth digit lands, and the field is replaced by the signature.</td>
               </tr>
               <tr>
                 <td>Eye relevance as a per-patient override</td>
-                <td>[cod] misses systemic drugs that matter to the eye, and one drug-set default cannot be right for every patient</td>
+                <td>The ophthalmic drug set misses systemic drugs that matter to the eye, and one drug-set default cannot be right for every patient</td>
                 <td>Use "Eye relevant" on hydroxychloroquine under Other systemic. It moves group and is marked as an override of the drug-set default.</td>
               </tr>
               <tr>
@@ -418,7 +440,7 @@
 
 <div class="oe-popup-wrap" id="popup-add" hidden>
   <div class="oe-popup max">
-    <div class="title">Add medication</div>
+    <div class="title" id="proto-add-title">Add medication</div>
     <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
     <div class="oe-popup-content">
       <hr class="divider">
@@ -443,11 +465,30 @@
             <label class="highlight inline"><input type="checkbox" id="proto-add-brands">Include brand names</label>
             <label class="highlight inline"><input type="checkbox" id="proto-add-pf">Preservative free medications</label>
           </div>
+          <!-- Selections accumulate here. Recording a list of drugs someone
+               walked in on is a batch job, so the adder builds a list before
+               committing rather than closing after every pick. -->
+          <div class="proto-selected" id="proto-add-selected"></div>
           <div class="proto-adder-note" id="proto-add-note"></div>
         </div>
       </div>
+      <!-- Two commit buttons rather than a mode control at the top, because the
+           choice between recording history and starting treatment is the whole
+           point of the dialog and was too easy to skip past when it sat above
+           the lists. Each button says what it does, and the disabled state says
+           why it is disabled. -->
       <div class="popup-actions flex-right">
-        <button class="green hint" id="proto-add-next" type="button" disabled>Add &amp; edit medication</button>
+        <span class="proto-add-hint" id="proto-add-hint"></span>
+        <label class="proto-add-from" id="proto-add-from-wrap" hidden>from:
+          <select id="proto-add-from">
+            <option value="patient_reported">the patient reports</option>
+            <option value="gp_letter">a GP letter</option>
+            <option value="shared_care_record">the shared care record</option>
+            <option value="provider_letter">another provider's letter</option>
+          </select>
+        </label>
+        <button class="green hint" id="proto-add-existing" type="button" disabled>Record existing medications</button>
+        <button class="green hint" id="proto-add-new" type="button" disabled>Record new medication</button>
         <button class="button proto-close" type="button">Cancel</button>
       </div>
     </div>
@@ -549,8 +590,11 @@
 
       <div class="proto-med-extra">
         <div>
-          <h4>Responsibility to supply <span class="proto-optional">who we are relying on from now on</span></h4>
+          <h4>Responsibility to supply <span class="proto-optional">who we are relying on</span></h4>
           <fieldset class="btn-list proto-inline-list" id="proto-edit-supply"></fieldset>
+          <label class="proto-field proto-field-wide" id="proto-edit-provider-wrap" hidden>Which provider
+            <input type="text" id="proto-edit-provider" placeholder="e.g. Southampton, shared care">
+          </label>
         </div>
         <div class="proto-indication-col">
           <h4>Indication <span class="proto-optional">optional, from this patient's recorded diagnoses</span></h4>
@@ -631,6 +675,8 @@
             <option value="now">Now</option>
             <option value="before-appt">Days before next appointment</option>
             <option value="at-appt">At next appointment</option>
+            <option value="before-surgery">Days before surgery</option>
+            <option value="at-surgery">On the day of surgery</option>
             <option value="date">On a fixed date</option>
           </select>
         </label>
@@ -640,6 +686,31 @@
         <label class="proto-field" id="proto-advise-date-wrap" hidden>Date
           <input type="date" id="proto-advise-date">
         </label>
+      </div>
+      <div id="proto-resume-block">
+        <div class="proto-field-row">
+          <label class="proto-field">Resume
+            <select id="proto-resume-anchor">
+              <option value="date">On a fixed date</option>
+              <option value="before-appt">Days before next appointment</option>
+              <option value="at-appt">At next appointment</option>
+              <option value="">Not yet decided</option>
+            </select>
+          </label>
+          <label class="proto-field" id="proto-resume-date-wrap">Date
+            <input type="date" id="proto-resume-date">
+          </label>
+          <label class="proto-field" id="proto-resume-days-wrap" hidden>Days before
+            <input type="number" id="proto-resume-days" value="7" min="1" max="90">
+          </label>
+        </div>
+        <div class="proto-quick-end" id="proto-resume-quickset">
+          <div class="proto-quick-row">
+            <span class="fade">Hold for</span>
+            <fieldset id="proto-resume-spans"></fieldset>
+          </div>
+          <small class="fade" id="proto-resume-note"></small>
+        </div>
       </div>
       <label class="proto-field proto-field-wide" id="proto-advise-reason-wrap">Reason
         <input type="text" id="proto-advise-reason" placeholder="e.g. not tolerated">
@@ -684,8 +755,10 @@
     <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
     <div class="oe-popup-content">
       <p id="proto-history-drug" class="proto-strong"></p>
+      <div id="proto-history-threads" class="proto-thread-pick" hidden></div>
+      <p id="proto-history-note" class="proto-thread-note"></p>
       <table class="standard proto-history-table">
-        <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Recorded as</th><th>Context</th></tr></thead>
+        <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Recorded as</th><th>Where it was made</th></tr></thead>
         <tbody id="proto-history-body"></tbody>
       </table>
     </div>
@@ -704,29 +777,9 @@
       <p id="proto-dup-explain"></p>
       <div class="popup-actions flex-right">
         <button class="button" id="proto-dup-anyway" type="button" hidden>Add anyway</button>
+        <button class="button green" id="proto-dup-bringforward" type="button" hidden>Bring the start forward to today</button>
         <button class="button green" id="proto-dup-edit" type="button">Change the existing entry</button>
       </div>
-    </div>
-  </div>
-</div>
-
-<div class="oe-popup-wrap" id="popup-sign" hidden>
-  <div class="oe-popup">
-    <div class="title">Sign prescription</div>
-    <div class="close-icon-btn proto-close"><i class="oe-i remove-circle pro-theme"></i></div>
-    <div class="oe-popup-content">
-      <div class="alert-box">
-        This prescription will be signed by <strong id="proto-sign-user"></strong>. Signing does not issue it. It can still be amended, and any amendment voids this signature.
-      </div>
-      <table class="standard proto-sign-table">
-        <thead><tr><th>Drug</th><th>Directions</th><th>Supply</th></tr></thead>
-        <tbody id="proto-sign-body"></tbody>
-      </table>
-      <label class="proto-field proto-field-wide proto-pin-field">Enter PIN to sign the prescription
-        <input type="password" id="proto-sign-pin" inputmode="numeric" maxlength="6" autocomplete="off"
-               class="user-pin-entry" placeholder="6 digits">
-        <span class="proto-optional">Signs as soon as six digits are entered, as every other PIN field in OpenEyes does. Any six digits work here.</span>
-      </label>
     </div>
   </div>
 </div>
